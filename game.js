@@ -3,8 +3,8 @@ const bgMusic = new Audio('sound_effects/background_arcade_music.wav');
 bgMusic.loop   = true;
 bgMusic.volume = 0.50;
 
-MIN_CHALLENGE_ORD_LENGTH = 3;
-MAX_CHALLENGE_ORD_LENGTH = 7;
+MIN_CHALLENGE_WORD_LENGTH = 3;
+MAX_CHALLENGE_WORD_LENGTH = 7;
 
 let challengeTime     = 60;    // seconds
 let currentTimer      = challengeTime;
@@ -177,7 +177,7 @@ function loadChallengeWords(callback) {
       challengeWords = lines
         .map(w => w.trim().toUpperCase())
         .filter(w => /^[A-Z]+$/.test(w))
-        .filter(w => w.length >= MIN_CHALLENGE_ORD_LENGTH && w.length <= MAX_CHALLENGE_WORD_LENGTH);
+        .filter(w => w.length >= MIN_CHALLENGE_WORD_LENGTH && w.length <= MAX_CHALLENGE_WORD_LENGTH);
     } else {
       console.error('Could not load wordlist.txt; using fallback list.');
       challengeWords = ['DEFAULT','WORDS','HERE'];
@@ -208,7 +208,7 @@ loadChallengeWords(() => {
  * uses it if the dictionary API confirms it exists.
  */
 async function pickNewChallenge() {
-  const pool = challengeWords.filter(w => w.length >= MIN_CHALLENGE_ORD_LENGTH && w.length <= MAX_CHALLENGE_WORD_LENGTH);
+  const pool = challengeWords.filter(w => w.length >= MIN_CHALLENGE_WORD_LENGTH && w.length <= MAX_CHALLENGE_WORD_LENGTH);
   if (!pool.length) {
     console.error("No words in pool!");
     return;
