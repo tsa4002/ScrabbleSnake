@@ -1,0 +1,442 @@
+/* ==========================================================================
+   RESET & BASE
+   ========================================================================== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  background: white;
+  color: black;
+  font-family: sans-serif;
+}
+
+/* ==========================================================================
+   LAYOUT
+   ========================================================================== */
+.container {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Sidebar (game board panel) */
+.sidebar {
+  position: relative; 
+  width: 25%;
+  background: white;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  border-right: 2px solid #ccc;
+  overflow-y: auto;
+}
+
+/* Arena (canvas container) */
+.game-arena {
+  flex: 1;
+  background: black;
+  border-radius: 30px;
+  margin: 20px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+#startOverlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200px;
+  height: 200px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: overlay-blink 1s infinite alternate;
+  z-index: 10;
+}
+
+/* Base arrow style */
+#startOverlay .arrow {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  font-size: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  text-shadow:
+    0 1px 1px rgba(0,0,0,0.5),
+    0 -1px 1px rgba(255,255,255,0.2);
+  background: linear-gradient(145deg, #555, #222);
+  border: 2px solid #999;
+  border-radius: 6px;
+  box-shadow:
+    inset 2px 2px 4px rgba(0,0,0,0.5),
+    inset -2px -2px 4px rgba(255,255,255,0.1),
+    3px 3px 6px rgba(0,0,0,0.4);
+}
+
+/* Now position each manually */
+#startOverlay .up {
+  top: 65px;
+  left: 75px;
+}
+
+#startOverlay .left {
+  top: 120px;
+  left: 20px;
+}
+
+#startOverlay .down {
+  top: 120px;
+  left: 75px;
+}
+
+#startOverlay .right {
+  top: 120px;
+  left: 130px;
+}
+
+
+/* Blink animation */
+@keyframes overlay-blink {
+  from { opacity: 4.5; }
+  to   { opacity: 0.4; }
+}
+
+/* Canvas */
+#game {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ==========================================================================
+   HEADERS & TITLES
+   ========================================================================== */
+.sidebar h1 {
+  font-size: 24px;
+  margin-bottom: 16px;
+}
+
+.sidebar h2 {
+  font-size: 18px;
+  margin-bottom: 18px;
+}
+
+/* Title-Tile Logo */
+.title-tile-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 5px 0 20px;
+}
+
+.title-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.title-tile {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  background-color: #ffe6a8;
+  border: 2px solid #333;
+  border-radius: 4px;
+  color: #000;
+  font-size: 26px;
+  font-weight: bold;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Courier New', monospace;
+}
+
+
+/* ----------------------------------------------------------------------------
+   WORD CHALLENGE 
+   ---------------------------------------------------------------------------- */
+
+.word-challenge {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;  /* keeps things aligned left */
+  margin-top: 20px;   
+
+}
+
+#wordChallengeTiles {
+  display: flex;  /* <- this keeps the tiles horizontal */
+  gap: 4px;
+}
+
+.timer-bar {
+  height: 8px;
+  width: 100%;
+  background: #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+#timerFill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(to right, #f66, #fa0);
+  transition: width 1s linear;
+}
+
+
+.heart {
+  font-size: 20px;
+  line-height: 1;
+  color: red;
+  text-shadow:
+     1px  1px 0 black,
+    -1px  1px 0 black,
+     1px -1px 0 black,
+    -1px -1px 0 black;
+}
+
+.heart.empty {
+  color: #555;
+  text-shadow: none;
+}
+
+/* New wrapper for title + hearts, side by side */
+.challenge-header {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin-left: auto;
+}
+
+/* Push the hearts to the right */
+.challenge-header #lifeContainer {
+  margin-left: auto;
+}
+
+#lifeContainer .heart {
+  transition: color .2s ease;
+}
+
+
+/* ==========================================================================
+   INVENTORY (“Collected Letters”)
+   ========================================================================== */
+.inventory {
+  margin-top: 30px;
+  margin-bottom: 124px;
+}
+
+/* Collected tile container needs relative for absolute-fall */
+#letterInventory,
+.tile-inventory {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px; 
+}
+
+.tile {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  background-color: #ffe6a8;
+  border: 2px solid #333;
+  border-radius: 4px;
+  color: #000;
+  font-size: 22px;
+  font-weight: bold;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Courier New', monospace;
+}
+
+.tile-points {
+  position: absolute;
+  bottom: -2.5px;
+  right: 1px;
+  font-size: 12px;
+  font-weight: bold;
+  opacity: 0.7;
+}
+
+.tile-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background-color: #333;
+  color: white;
+  font-size: 12px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: sans-serif;
+}
+
+/* ==========================================================================
+   SUBMISSION AREA (Enter Word + Score)
+   ========================================================================== */
+
+.submission-area {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;   /* center under input */
+  gap: 12px;             /* space between input and score */
+  background: rgba(255,255,255,0.9);
+  padding: 8px;
+  border-radius: 4px;
+  z-index: 1;
+}
+
+/* When you switch to row layout: */
+.submission-area.submission-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.submission-area.submission-row input#wordInput {
+  flex-grow: 1;
+}
+
+#wordInput {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  border: 2px solid #888;
+  border-radius: 4px;
+  background: #fff;
+  color: black;
+  transition: border 0.3s, box-shadow 0.3s;
+}
+
+#wordInput:focus {
+  outline: none;
+  border-color: #555;
+}
+
+#wordInput.success {
+  border-color: limegreen;
+  box-shadow: 0 0px 8px limegreen;
+}
+
+#wordInput.error {
+  border-color: red;
+  animation: shake 0.3s;
+}
+
+/* ==========================================================================
+   SCORE DISPLAY
+   ========================================================================== */
+
+/* === Score display wrapper === */
+.score-display {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0px;
+  background: #ffe6a8;
+  padding: 4px 12px;
+  border-radius: 4px;
+  text-align: center;
+  border: 1px solid #333;
+}
+
+/* === Favicon icon as “S” === */
+.score-icon {
+  width: 3em;
+  height: 3em;
+}
+
+/* === Container for the “CORE” tiles === */
+.score-tiles {
+  display: flex;
+  gap: 4px;
+}
+
+/* === Reuse your existing .tile style, but override size === */
+.score-display .tile {
+  width: 2em;            /* same as favicon */
+  height: 2em;
+  background-color: #ffe6a8;
+  border: 2px solid #333;
+  border-radius: 4px;
+  color: #000;
+  font-size: 12px;      /*Size of the CORE letters */
+  font-weight: bold;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Courier New', monospace;
+}
+
+/* the colon separator */
+.score-sep {
+  margin: 2px; /* adjust left/right space around “:” */
+  font-size: 1.2em;
+  color: #333;
+}
+
+/* the numeric score itself */
+.score-value {
+  font-size: 1.5em;
+  font-weight: bold;
+  color: #333;
+  /* if you want extra breathing room from the colon: */
+  margin-left: 10px;
+}
+
+
+
+/* ==========================================================================
+   ANIMATIONS
+   ========================================================================== */
+/* Input shake */
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  25%,75% { transform: translateX(-5px); }
+  50%     { transform: translateX(5px); }
+}
+
+/* Tile shake */
+@keyframes tile-shake {
+  0%,100% { transform: translateX(0); }
+  20%,60% { transform: translateX(-6px); }
+  40%,80% { transform: translateX(6px); }
+}
+#letterInventory.shake .tile {
+  animation: tile-shake 0.6s ease;
+}
+
+/* Tile fall — absolutely positioned so it won’t shift layout */
+@keyframes tile-fall {
+  to {
+    transform: translateY(120vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+.tile.fall {
+  animation: tile-fall 1.5s ease forwards !important;
+  z-index: 10;
+}
+

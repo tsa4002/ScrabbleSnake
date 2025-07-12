@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Scrabble Snake</title>
+  <link rel="stylesheet" href="stylesheet.css" />
+  <link rel="icon" href="favicon.png" />
+</head>
+<body>
+  <div class="container">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+
+      <!-- Game Title -->
+      <div class="title-tile-wrapper">
+        <div class="title-line">
+          <span class="title-tile" style="background-color: #ffe6a8; transform: rotate(-8deg);">S</span>
+          <span class="title-tile" style="background-color: #ffe6a8; transform: rotate(6deg);">C</span>
+          <span class="title-tile" style="background-color: #ffe6a8; transform: rotate(-4deg);">R</span>
+          <span class="title-tile" style="background-color: #ffe6a8; transform: rotate(5deg);">A</span>
+          <span class="title-tile" style="background-color: #ffe6a8; transform: rotate(-5deg);">B</span>
+          <span class="title-tile" style="background-color: #ffe6a8; transform: rotate(4deg);">B</span>
+          <span class="title-tile" style="background-color: #ffe6a8; transform: rotate(-6deg);">L</span>
+          <span class="title-tile" style="background-color: #ffe6a8; transform: rotate(8deg);">E</span>
+        </div>
+        <div class="title-line indent">
+          <span class="title-tile" style="background-color: #D2AFB5;">S</span>
+          <span class="title-tile" style="background-color: #B6CBCC;">N</span>
+          <span class="title-tile" style="background-color: #ffe6a8;">A</span>
+          <span class="title-tile" style="background-color: #D8D5C2;">K</span>
+          <span class="title-tile" style="background-color: #05A4CB;">E</span>
+        </div>
+      </div>
+
+      <!-- Word Challenge -->
+      <div class="word-challenge">
+        <div class="timer-bar">
+          <div id="timerFill"></div>
+        </div>
+        <div class="challenge-header">
+          <h3>Word Challenge</h3>
+          <div id="lifeContainer">
+            <span class="heart full">❤</span>
+            <span class="heart full">❤</span>
+            <span class="heart full">❤</span>
+          </div>
+        </div>
+        <div id="wordChallengeTiles"></div>
+      </div>
+
+      <!-- Inventory -->
+      <div class="inventory">
+        <h3>Letters Collected</h3>
+        <div id="letterInventory" class="tile-inventory"></div>
+      </div>
+
+      <!-- Submission & Score -->
+      <div class="submission-area">
+        <input id="wordInput" type="text" placeholder="Enter word…" />
+
+        <div id="playerScore" class="score-display">
+          <!-- Favicon‑as‑tile for “S” -->
+          <img src="favicon.png" alt="S" class="score-icon" />
+
+          <!-- Four Scrabble tiles spelling “CORE” -->
+          <div class="score-tiles">
+            <div class="tile">C</div>
+            <div class="tile">O</div>
+            <div class="tile">R</div>
+            <div class="tile">E</div>
+          </div>
+
+          <!-- Separator -->
+          <span class="score-sep">:</span>
+
+          <!-- Numeric score -->
+          <span id="scoreValue" class="score-value">0</span>
+        </div>
+      </div>
+
+    </div><!-- /.sidebar -->
+
+    <!-- Game Arena -->
+    <div class="game-arena">
+      <canvas id="game"></canvas>
+      <div id="startOverlay">
+        <div class="arrow up">↑</div>
+        <div class="arrow left">←</div>
+        <div class="arrow down">↓</div>
+        <div class="arrow right">→</div>
+      </div>
+    </div>
+
+  </div><!-- /.container -->
+
+  <script src="game.js"></script>
+</body>
+</html>
