@@ -5,8 +5,9 @@ bgMusic.volume = 0.50;
 
 MIN_CHALLENGE_WORD_LENGTH = 3;
 MAX_CHALLENGE_WORD_LENGTH = 7;
+MAX_DUPLICATES = 2;
 
-let challengeTime     = 60;    // seconds
+let challengeTime     = 40;    // seconds
 let currentTimer      = challengeTime;
 let challengeInterval = null;
 const timerDisplay    = document.getElementById('timerDisplay');
@@ -15,7 +16,7 @@ let lives = 3;
 const lifeContainer = document.getElementById('lifeContainer');
 
 const LETTER_SPAWN_RATE = 10;
-const LETTER_SPAWN_RADIUS = 5;  // tweak to taste
+const LETTER_SPAWN_RADIUS = 7;  // How far letters are in the arena 
 
 
 // --- Audio SFX & Unlock ---
@@ -208,45 +209,57 @@ loadChallengeWords(() => {
  * uses it if the dictionary API confirms it exists.
  */
 async function pickNewChallenge() {
-  const pool = challengeWords.filter(w => w.length >= MIN_CHALLENGE_WORD_LENGTH && w.length <= MAX_CHALLENGE_WORD_LENGTH);
+  // 1) First filter by length _and_ by duplicate‑letter cap
+  const pool = challengeWords
+    .filter(w =>
+      w.length >= MIN_CHALLENGE_WORD_LENGTH &&
+      w.length <= MAX_CHALLENGE_WORD_LENGTH &&
+      // ensure no letter appears more than MAX_DUPLICATES times:
+      Object.values(
+        w.split('').reduce((freq, ch) => {
+          freq[ch] = (freq[ch] || 0) + 1;
+          return freq;
+        }, {})
+      ).every(count => count <= MAX_DUPLICATES)
+    );
+
   if (!pool.length) {
-    console.error("No words in pool!");
+    console.error("No words in pool after duplicate‑filter!");
+    currentChallenge = "WORD";
+    renderChallenge();
+    animateChallengeDrop();
+    startChallengeTimer();
     return;
   }
 
   let candidate;
   let isValid = false;
 
-  // Keep trying random words until one passes the dictionary check
-  while (!isValid && pool.length) {
-    // Pick & remove a random index so we don't retry the same bad word
-    const idx = Math.floor(Math.random() * pool.length);
-    candidate = pool.splice(idx, 1)[0];
+  // 2) Now do the dictionary API check on a shuffled copy
+  let tries = [...pool]; // we’ll remove from here as we go
+  while (tries.length && !isValid) {
+    const idx       = Math.floor(Math.random() * tries.length);
+    candidate       = tries.splice(idx, 1)[0];
 
     try {
-      const res = await fetch(
+      const res  = await fetch(
         `https://api.dictionaryapi.dev/api/v2/entries/en/${candidate.toLowerCase()}`
       );
       if (res.ok) {
-        // the API returns an array for valid words
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
           isValid = true;
         }
       }
-    } catch (e) {
-      // network / API error -> treat as invalid and continue
+    } catch {
+      // ignore network / API glitches and keep trying
     }
   }
 
-  if (!isValid) {
-    console.warn("No valid challenge found; using fallback.");
-    currentChallenge = "WORD";
-  } else {
-    currentChallenge = candidate;
-  }
+  // 3) Fallback if nothing passed
+  currentChallenge = isValid ? candidate : "WORD";
 
-  // render & animate as before
+  // 4) Render & animate
   renderChallenge();
   animateChallengeDrop();
   startChallengeTimer();
@@ -485,21 +498,27 @@ function moveSnake() {
     }
   }
 
-  // pick up letter
-  const idx=lettersOnBoard.findIndex(t=>t.x===newX&&t.y===newY);
-  if(idx!==-1){
-    const L=lettersOnBoard.splice(idx,1)[0].letter;
+
+  // 4. Letter pickup with max‑2 cap
+const idx = lettersOnBoard.findIndex(t => t.x === newX && t.y === newY);
+if (idx !== -1) {
+  const L = lettersOnBoard[idx].letter;
+
+  // count how many of L we already have
+  const haveCount = snake.slice(1).filter(s => s.letter === L).length;
+  if (haveCount < 2) {
+    // remove from board and grow
+    lettersOnBoard.splice(idx, 1);
     playSfx(sfxLetter);
-    headBounce=15;
-    for(let i=0;i<snake.length;i++){
-      setTimeout(()=>{
-        glowingTiles.push({x:snake[i].x,y:snake[i].y,frames:10});
-      },i*50);
-    }
-    const tail=snake[snake.length-1];
-    snake.push({x:tail.x,y:tail.y,letter:L});
+    headBounce = 15;
+    // … pulse glow down the snake …
+    const tail = snake[snake.length - 1];
+    snake.push({ x: tail.x, y: tail.y, letter: L });
     updateInventory();
   }
+  // otherwise we ignore it (leave it on the board)
+}
+
 }
 
 // --- Drawing ---
@@ -613,17 +632,6 @@ async function handleWordSubmission(input) {
     used.push(m.index);
   }
 
-  // 3) Dictionary check (you can actually skip this too if you trust your challenge list!)
-  try {
-    const res = await fetch(
-      `https://api.dictionaryapi.dev/api/v2/entries/en/${input.toLowerCase()}`
-    );
-    if (!res.ok) throw 0;
-    await res.json();
-  } catch {
-    flashInputError();
-    return;
-  }
 
   // 4) Remove & reposition segments (unchanged)
   const oldPos = snake.map(s => ({ x: s.x, y: s.y }));

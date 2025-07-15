@@ -82,6 +82,18 @@ html, body {
     3px 3px 6px rgba(0,0,0,0.4);
 }
 
+/* new “Tab” key style */
+#startOverlay .tab {
+  /* same base arrow look & feel */
+  width: 80px;
+  height: 50px;
+  font-size: 18px;
+  line-height: 1;
+  top: 120px;           /* push it below the Up/Down arrows */
+  left: -20%;            /* center horizontally */
+  transform: translateX(-50%);
+}
+
 /* Now position each manually */
 #startOverlay .up {
   top: 65px;
