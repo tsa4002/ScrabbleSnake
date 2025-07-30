@@ -18,6 +18,7 @@ const lifeContainer = document.getElementById('lifeContainer');
 const LETTER_SPAWN_RATE = 10;
 const LETTER_SPAWN_RADIUS = 7;  // How far letters are in the arena 
 
+const barrierWiggles = [];  // each { x, y, letter, frame }
 
 // --- Audio SFX & Unlock ---
 const sfxLetter       = new Audio('sound_effects/letter_pickup.wav');
@@ -471,55 +472,58 @@ wordInput.addEventListener('keydown', async e => {
 // --- Snake Movement ---
 function moveSnake() {
   if (paused) return;
-  direction = nextDirection;
-  const newX = snake[0].x + direction.x;
-  const newY = snake[0].y + direction.y;
+  const newX = snake[0].x + nextDirection.x;
+  const newY = snake[0].y + nextDirection.y;
 
-  for (let i=snake.length-1;i>0;i--) {
-    snake[i].x=snake[i-1].x; snake[i].y=snake[i-1].y;
+  // --- Barrier letter check ---
+  const idx = lettersOnBoard.findIndex(t => t.x === newX && t.y === newY);
+  if (idx !== -1) {
+    const L = lettersOnBoard[idx].letter;
+    const haveCount = snake.slice(1).filter(s => s.letter === L).length;
+
+    if (haveCount >= 2) {
+      // Too many of this letter: treat as a barrier
+      barrierWiggles.push({ x: newX, y: newY, letter: L, frame: 0 });
+      return; // cancel movement
+    } else {
+      // Can pick it up
+      lettersOnBoard.splice(idx, 1);
+      playSfx(sfxLetter);
+      headBounce = 15;
+      const tail = snake[snake.length - 1];
+      snake.push({ x: tail.x, y: tail.y, letter: L });
+      updateInventory();
+    }
   }
-  snake[0].x=newX; snake[0].y=newY;
 
-  // self-collision
-  for (let i=1;i<snake.length;i++){
-    if (snake[i].x===newX && snake[i].y===newY){
+  // --- Move the snake forward ---
+  direction = nextDirection;
+  for (let i = snake.length - 1; i > 0; i--) {
+    snake[i].x = snake[i - 1].x;
+    snake[i].y = snake[i - 1].y;
+  }
+  snake[0].x = newX;
+  snake[0].y = newY;
+
+  // --- Self collision ---
+  for (let i = 1; i < snake.length; i++) {
+    if (snake[i].x === newX && snake[i].y === newY) {
       playSfx(sfxCrash);
-      const oldTail=snake.slice(1);
-      paused=true;
-      triggerInventoryLossAnimation().then(()=>{
-        oldTail.forEach(seg=>{
-          if(seg.letter) lettersOnBoard.push({x:seg.x,y:seg.y,letter:seg.letter});
+      const oldTail = snake.slice(1);
+      paused = true;
+      triggerInventoryLossAnimation().then(() => {
+        oldTail.forEach(seg => {
+          if (seg.letter) lettersOnBoard.push({ x: seg.x, y: seg.y, letter: seg.letter });
         });
-        snake=[{x:newX,y:newY,letter:null}];
+        snake = [{ x: newX, y: newY, letter: null }];
         updateInventory();
-        paused=false;
+        paused = false;
       });
       return;
     }
   }
-
-
-  // 4. Letter pickup with max‑2 cap
-const idx = lettersOnBoard.findIndex(t => t.x === newX && t.y === newY);
-if (idx !== -1) {
-  const L = lettersOnBoard[idx].letter;
-
-  // count how many of L we already have
-  const haveCount = snake.slice(1).filter(s => s.letter === L).length;
-  if (haveCount < 2) {
-    // remove from board and grow
-    lettersOnBoard.splice(idx, 1);
-    playSfx(sfxLetter);
-    headBounce = 15;
-    // … pulse glow down the snake …
-    const tail = snake[snake.length - 1];
-    snake.push({ x: tail.x, y: tail.y, letter: L });
-    updateInventory();
-  }
-  // otherwise we ignore it (leave it on the board)
 }
 
-}
 
 // --- Drawing ---
 function draw() {
@@ -559,9 +563,27 @@ function draw() {
   ctx.fillStyle='white';
   ctx.font=`${tileSize-4}px monospace`;
   ctx.textAlign='center';ctx.textBaseline='middle';
-  lettersOnBoard.forEach(t=>{
-    ctx.fillText(t.letter,t.x*tileSize+tileSize/2,t.y*tileSize+tileSize/2);
-  });
+lettersOnBoard.forEach(t => {
+  const wiggle = barrierWiggles.find(b => b.x === t.x && b.y === t.y);
+  let offsetX = 0;
+
+  if (wiggle) {
+    const wigglePhase = wiggle.frame / 10;
+    offsetX = Math.sin(wigglePhase * Math.PI * 4) * 3;  // wiggle magnitude
+    wiggle.frame++;
+    if (wiggle.frame > 10) {
+      // done wiggling
+      const idx = barrierWiggles.indexOf(wiggle);
+      if (idx !== -1) barrierWiggles.splice(idx, 1);
+    }
+  }
+
+  ctx.fillText(
+    t.letter,
+    t.x * tileSize + tileSize/2 + offsetX,
+    t.y * tileSize + tileSize/2
+  );
+});
 }
 
 function drawLoop(){
