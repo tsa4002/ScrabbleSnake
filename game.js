@@ -209,58 +209,34 @@ loadChallengeWords(() => {
  * Picks a random challenge from `challengeWords`, but only
  * uses it if the dictionary API confirms it exists.
  */
-async function pickNewChallenge() {
-  // 1) First filter by length _and_ by duplicate‑letter cap
-  const pool = challengeWords
-    .filter(w =>
-      w.length >= MIN_CHALLENGE_WORD_LENGTH &&
-      w.length <= MAX_CHALLENGE_WORD_LENGTH &&
-      // ensure no letter appears more than MAX_DUPLICATES times:
-      Object.values(
-        w.split('').reduce((freq, ch) => {
-          freq[ch] = (freq[ch] || 0) + 1;
-          return freq;
-        }, {})
-      ).every(count => count <= MAX_DUPLICATES)
-    );
-
-  if (!pool.length) {
-    console.error("No words in pool after duplicate‑filter!");
-    currentChallenge = "WORD";
-    renderChallenge();
-    animateChallengeDrop();
-    startChallengeTimer();
-    return;
-  }
-
-  let candidate;
-  let isValid = false;
-
-  // 2) Now do the dictionary API check on a shuffled copy
-  let tries = [...pool]; // we’ll remove from here as we go
-  while (tries.length && !isValid) {
-    const idx       = Math.floor(Math.random() * tries.length);
-    candidate       = tries.splice(idx, 1)[0];
-
-    try {
-      const res  = await fetch(
-        `https://api.dictionaryapi.dev/api/v2/entries/en/${candidate.toLowerCase()}`
-      );
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          isValid = true;
-        }
-      }
-    } catch {
-      // ignore network / API glitches and keep trying
+function pickNewChallenge() {
+  const pool = challengeWords.filter(w => {
+    if (
+      w.length < MIN_CHALLENGE_WORD_LENGTH ||
+      w.length > MAX_CHALLENGE_WORD_LENGTH
+    ) {
+      return false;
     }
+
+    const counts = {};
+
+    for (const ch of w) {
+      counts[ch] = (counts[ch] || 0) + 1;
+      if (counts[ch] > MAX_DUPLICATES) return false;
+    }
+
+    return true;
+  });
+
+  if (pool.length === 0) {
+    console.error("No valid challenge words found.");
+    currentChallenge = "WORD";
+  } else {
+    currentChallenge = pool[
+      Math.floor(Math.random() * pool.length)
+    ];
   }
 
-  // 3) Fallback if nothing passed
-  currentChallenge = isValid ? candidate : "WORD";
-
-  // 4) Render & animate
   renderChallenge();
   animateChallengeDrop();
   startChallengeTimer();
@@ -447,6 +423,12 @@ document.addEventListener('keydown', e => {
     document.getElementById('startOverlay').style.display = 'none';
     overlayActive = false;
   }
+
+  if (e.key === 'Tab') {
+  e.preventDefault();
+  wordInput.focus();
+  return;
+}
 
   if (paused) return;
   if (e.key === 'ArrowUp'    && direction.y === 0) nextDirection = { x: 0, y: -1 };
