@@ -57,25 +57,59 @@
 
       <!-- Submission & Score -->
       <div class="submission-area">
-        <input id="wordInput" type="text" placeholder="Enter word…" />
 
-        <div id="playerScore" class="score-display">
-          <!-- Favicon‑as‑tile for “S” -->
-          <img src="favicon.png" alt="S" class="score-icon" />
+        <input id="wordInput" type="text" placeholder="Spell the word and press enter!" />
 
-          <!-- Four Scrabble tiles spelling “CORE” -->
-          <div class="score-tiles">
-            <div class="tile">C</div>
-            <div class="tile">O</div>
-            <div class="tile">R</div>
-            <div class="tile">E</div>
+        <div class="submission-footer">
+
+          <!-- Score on the left -->
+          <div id="playerScore" class="score-display">
+            <img src="favicon.png" alt="S" class="score-icon" />
+
+            <div class="score-tiles">
+              <div class="tile">C</div>
+              <div class="tile">O</div>
+              <div class="tile">R</div>
+              <div class="tile">E</div>
+            </div>
+
+            <span class="score-sep">:</span>
+            <span id="scoreValue" class="score-value">0</span>
           </div>
 
-          <!-- Separator -->
-          <span class="score-sep">:</span>
+          <!-- Controls on the right -->
+          <div class="game-controls">
 
-          <!-- Numeric score -->
-          <span id="scoreValue" class="score-value">0</span>
+            <button id="resetButton" class="control-button" 
+                    title="Reset game" aria-label="Reset game">
+              <svg viewBox="0 0 24 24">
+                <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/>
+                <path d="M3 3v5h5"/>
+              </svg>
+            </button>
+
+            <button id="muteButton" class="control-button"
+                    title="Mute sound" aria-label="Mute sound">
+              <svg id="muteIcon" viewBox="0 0 24 24">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M15.5 8.5a5 5 0 0 1 0 7"/>
+                <path d="M19 5a10 10 0 0 1 0 14"/>
+              </svg>
+            </button>
+
+            <button id="shareButton" class="control-button"
+                    title="Share game" aria-label="Share game">
+              <svg viewBox="0 0 24 24">
+                <circle cx="18" cy="5" r="3"/>
+                <circle cx="6" cy="12" r="3"/>
+                <circle cx="18" cy="19" r="3"/>
+                <path d="m8.7 10.7 6.6-4.4"/>
+                <path d="m8.7 13.3 6.6 4.4"/>
+              </svg>
+            </button>
+
+          </div>
+
         </div>
       </div>
 
