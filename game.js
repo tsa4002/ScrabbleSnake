@@ -14,6 +14,9 @@ MAX_DUPLICATES = 2;
 let challengeTime     = 40;    // seconds
 let currentTimer      = challengeTime;
 let challengeInterval = null;
+let timerAnimationTimeout = null;
+let challengeActive = false;
+let challengeGeneration = 0;
 const timerDisplay    = document.getElementById('timerDisplay');
 
 let lives = 3;
@@ -254,7 +257,6 @@ loadChallengeWords(() => {
   moveInterval = setInterval(moveSnake, gameSpeed);
   setInterval(spawnLetter, LETTER_SPAWN_RATE);
 
-
   requestAnimationFrame(drawLoop);
   wordInput.blur();
   paused = false;
@@ -263,7 +265,11 @@ loadChallengeWords(() => {
 /**
  * Picks a random challenge from challengeWords.
  */
-function pickNewChallenge() {
+async function pickNewChallenge() {
+  // Keep the timer stopped until the new challenge has finished dropping in.
+  stopChallengeTimer();
+  const thisChallenge = ++challengeGeneration;
+
   const pool = challengeWords.filter(w => {
     if (
       w.length < MIN_CHALLENGE_WORD_LENGTH ||
@@ -295,7 +301,19 @@ function pickNewChallenge() {
   }
 
   renderChallenge();
-  animateChallengeDrop();
+
+  // Reset the bar visually, but do not start its countdown yet.
+  const timerFill = document.getElementById('timerFill');
+  if (timerFill) {
+    timerFill.style.transition = 'none';
+    timerFill.style.width = '100%';
+  }
+
+  await animateChallengeDrop();
+
+  // Ignore an older animation if a newer challenge has already been picked.
+  if (thisChallenge !== challengeGeneration) return;
+
   startChallengeTimer();
 }
 
@@ -359,8 +377,10 @@ async function handleChallengeTimeout() {
 
     // Freeze the CSS timer bar.
     const fill = document.getElementById('timerFill');
-    fill.style.transition = 'none';
-    fill.style.width = '0%';
+    if (fill) {
+      fill.style.transition = 'none';
+      fill.style.width = '0%';
+    }
 
     // Animate hearts refilling evenly over 2 seconds.
     const emptyHearts = Array.from(
@@ -417,23 +437,63 @@ async function handleChallengeTimeout() {
   pickNewChallenge();
 }
 
-function startChallengeTimer() {
+function stopChallengeTimer() {
+  // Mark the challenge as resolved.
+  challengeActive = false;
+
+  // Cancel the JavaScript countdown.
   clearTimeout(challengeInterval);
+  challengeInterval = null;
+
+  // Cancel any pending timer animation start.
+  clearTimeout(timerAnimationTimeout);
+  timerAnimationTimeout = null;
+
+  // Freeze the timer bar at its current position.
+  const timerFill = document.getElementById('timerFill');
+
+  if (timerFill) {
+    const currentWidth = window.getComputedStyle(timerFill).width;
+
+    timerFill.style.transition = 'none';
+    timerFill.style.width = currentWidth;
+  }
+}
+
+function startChallengeTimer() {
+  // Clear any previous timers before starting this challenge.
+  clearTimeout(challengeInterval);
+  clearTimeout(timerAnimationTimeout);
+
+  challengeInterval = null;
+  timerAnimationTimeout = null;
+  challengeActive = true;
 
   const timerFill = document.getElementById('timerFill');
-  timerFill.style.transition = 'none';
-  timerFill.style.width = '100%';
 
-  // Allow the DOM to update before starting the transition.
-  setTimeout(() => {
-    timerFill.style.transition = `width ${challengeTime}s linear`;
-    timerFill.style.width = '0%';
+  if (timerFill) {
+    timerFill.style.transition = 'none';
+    timerFill.style.width = '100%';
+  }
+
+  // Start the visual bar and JavaScript deadline at the same moment.
+  timerAnimationTimeout = setTimeout(() => {
+    timerAnimationTimeout = null;
+
+    if (!challengeActive) return;
+
+    if (timerFill) {
+      timerFill.style.transition = `width ${challengeTime}s linear`;
+      timerFill.style.width = '0%';
+    }
+
+    challengeInterval = setTimeout(() => {
+      if (!challengeActive) return;
+
+      stopChallengeTimer();
+      handleChallengeTimeout();
+    }, challengeTime * 1000);
   }, 50);
-
-  // Use setTimeout to trigger the timeout action.
-  challengeInterval = setTimeout(() => {
-    handleChallengeTimeout();
-  }, challengeTime * 1000);
 }
 
 function renderChallenge() {
@@ -454,7 +514,7 @@ function renderChallenge() {
 }
 
 // Drop-in animation for new challenge tiles.
-function animateChallengeDrop() {
+async function animateChallengeDrop() {
   const tiles = Array.from(challengeContainer.children);
 
   tiles.forEach((tile, i) => {
@@ -467,6 +527,12 @@ function animateChallengeDrop() {
       tile.style.opacity = '1';
     }, i * 100);
   });
+
+  const animationDuration = tiles.length
+    ? (tiles.length - 1) * 100 + 500
+    : 0;
+
+  await new Promise(resolve => setTimeout(resolve, animationDuration));
 }
 
 // --- Inventory Rendering ---
@@ -509,6 +575,29 @@ updateInventory();
 
 // --- Controls ---
 document.addEventListener('keydown', e => {
+  // M toggles sound anywhere except while the user is typing in a field.
+  const target = e.target;
+  const isTypingInField = document.activeElement === wordInput || (
+    target instanceof HTMLElement && (
+      target.matches('input, textarea, select') ||
+      target.isContentEditable ||
+      Boolean(target.closest('[contenteditable="true"]'))
+    )
+  );
+
+  if (
+    e.key.toLowerCase() === 'm' &&
+    !e.repeat &&
+    !e.ctrlKey &&
+    !e.metaKey &&
+    !e.altKey &&
+    !isTypingInField
+  ) {
+    e.preventDefault();
+    toggleMute();
+    return;
+  }
+
   if (
     overlayActive &&
     ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)
@@ -810,7 +899,7 @@ async function triggerInventoryLossAnimation() {
 
 // --- Word Submission & Scoring ---
 async function handleWordSubmission(input) {
-  if (!input) {
+  if (!input || !challengeActive) {
     return;
   }
 
@@ -841,6 +930,8 @@ async function handleWordSubmission(input) {
 
     used.push(m.index);
   }
+
+  stopChallengeTimer();
 
   // Remove and reposition segments.
   const oldPos = snake.map(s => ({
@@ -920,16 +1011,19 @@ renderLives();
 // in the HTML.
 // =========================================================================
 
-// RESET: reload the page to reset all game state and timers cleanly.
+// RESET BUTTON
 const resetButton = document.getElementById('resetButton');
 
-if (resetButton) {
-  resetButton.addEventListener('click', () => {
-    window.location.reload();
-  });
+function handleResetButton() {
+  // Reloading clears the score, lives, timers, board, and challenge state.
+  window.location.reload();
 }
 
-// MUTE / UNMUTE: toggle background music and currently playing sound effects.
+if (resetButton) {
+  resetButton.addEventListener('click', handleResetButton);
+}
+
+// MUTE BUTTON AND M KEYBOARD SHORTCUT
 const muteButton = document.getElementById('muteButton');
 const muteIcon = document.getElementById('muteIcon');
 
@@ -945,70 +1039,89 @@ const soundOffIcon = `
   <path d="m22 9-5 6"/>
 `;
 
-if (muteButton) {
-  muteButton.addEventListener('click', () => {
-    isMuted = !isMuted;
-    bgMusic.muted = isMuted;
+function updateMuteButton() {
+  if (muteIcon) {
+    muteIcon.innerHTML = isMuted ? soundOffIcon : soundOnIcon;
+  }
 
-    activeSfx.forEach(clip => {
-      clip.muted = isMuted;
-    });
-
-    if (!isMuted) {
-      bgMusic.play().catch(() => {});
-    }
-
-    if (muteIcon) {
-      muteIcon.innerHTML = isMuted ? soundOffIcon : soundOnIcon;
-    }
-
-    muteButton.title = isMuted ? 'Unmute sound' : 'Mute sound';
-
-    muteButton.setAttribute(
-      'aria-label',
-      isMuted ? 'Unmute sound' : 'Mute sound'
-    );
-  });
+  if (muteButton) {
+    const label = isMuted ? 'Unmute sound (M)' : 'Mute sound (M)';
+    muteButton.title = label;
+    muteButton.setAttribute('aria-label', label);
+    muteButton.setAttribute('aria-pressed', String(isMuted));
+    muteButton.setAttribute('aria-keyshortcuts', 'M');
+  }
 }
 
-// SHARE: use the native share sheet where available, otherwise copy the URL.
+function toggleMute() {
+  isMuted = !isMuted;
+  bgMusic.muted = isMuted;
+
+  // Also mute or unmute any sound effects that are already playing.
+  activeSfx.forEach(clip => {
+    clip.muted = isMuted;
+  });
+
+  if (!isMuted) {
+    bgMusic.play().catch(() => {});
+  }
+
+  updateMuteButton();
+}
+
+function handleMuteButton() {
+  toggleMute();
+}
+
+if (muteButton) {
+  muteButton.addEventListener('click', handleMuteButton);
+}
+
+// Set the correct icon and accessible label on initial page load.
+updateMuteButton();
+
+// SHARE BUTTON
 const shareButton = document.getElementById('shareButton');
 
-if (shareButton) {
-  shareButton.addEventListener('click', async () => {
-    const shareData = {
-      title: 'Scrabble Snake',
-      text: 'Come play Scrabble Snake!',
-      url: window.location.href
-    };
+async function handleShareButton() {
+  const shareData = {
+    title: 'Scrabble Snake',
+    text: 'Come play Scrabble Snake!',
+    url: window.location.href
+  };
 
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-      } else if (
-        navigator.clipboard &&
-        navigator.clipboard.writeText
-      ) {
-        await navigator.clipboard.writeText(window.location.href);
-
-        shareButton.title = 'Link copied!';
-        shareButton.setAttribute('aria-label', 'Link copied!');
-
-        setTimeout(() => {
-          shareButton.title = 'Share game';
-          shareButton.setAttribute('aria-label', 'Share game');
-        }, 2000);
-      } else {
-        window.prompt(
-          'Copy this link to share the game:',
-          window.location.href
-        );
-      }
-    } catch (error) {
-      // Closing the native share sheet is not an error.
-      if (error.name !== 'AbortError') {
-        console.error('Sharing failed:', error);
-      }
+  try {
+    if (navigator.share) {
+      await navigator.share(shareData);
+      return;
     }
-  });
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(window.location.href);
+
+      shareButton.title = 'Link copied!';
+      shareButton.setAttribute('aria-label', 'Link copied!');
+
+      setTimeout(() => {
+        shareButton.title = 'Share game';
+        shareButton.setAttribute('aria-label', 'Share game');
+      }, 2000);
+
+      return;
+    }
+
+    window.prompt(
+      'Copy this link to share the game:',
+      window.location.href
+    );
+  } catch (error) {
+    // Closing the native share sheet is not an error.
+    if (error.name !== 'AbortError') {
+      console.error('Sharing failed:', error);
+    }
+  }
+}
+
+if (shareButton) {
+  shareButton.addEventListener('click', handleShareButton);
 }
