@@ -11,7 +11,7 @@ MIN_CHALLENGE_WORD_LENGTH = 3;
 MAX_CHALLENGE_WORD_LENGTH = 7;
 MAX_DUPLICATES = 2;
 
-let challengeTime     = 40;    // seconds
+let challengeTime     = 80;    // seconds
 let currentTimer      = challengeTime;
 let challengeInterval = null;
 let timerAnimationTimeout = null;
