@@ -17,6 +17,9 @@ let challengeInterval = null;
 let timerAnimationTimeout = null;
 let challengeActive = false;
 let challengeGeneration = 0;
+let challengeRemainingMs = challengeTime * 1000;
+let challengeDeadline = null;
+let challengeTimerPaused = false;
 const timerDisplay    = document.getElementById('timerDisplay');
 
 let lives = 3;
@@ -30,6 +33,7 @@ const barrierWiggles = [];  // each { x, y, letter, frame }
 // --- Audio SFX & Unlock ---
 const sfxLetter       = new Audio('sound_effects/letter_pickup.wav');
 const sfxSubmit       = new Audio('sound_effects/accepted_submission.wav');
+const sfxErrorSubmission = new Audio('sound_effects/error_submisson.wav');
 const sfxCrash        = new Audio('sound_effects/word_scatter.wav');
 const sfxHeartLost    = new Audio('sound_effects/lost_heart.wav');
 const sfxHeartsRefill = new Audio('sound_effects/hearts_refill.wav');
@@ -49,7 +53,7 @@ function playSfx(sfx) {
 function unlockAudio() {
   // Prime the audio elements after the browser receives a user gesture.
   if (!isMuted) {
-    [sfxLetter, sfxSubmit, sfxCrash, sfxHeartLost, sfxHeartsRefill].forEach(sfx => {
+    [sfxLetter, sfxSubmit, sfxErrorSubmission, sfxCrash, sfxHeartLost, sfxHeartsRefill].forEach(sfx => {
       sfx.play().catch(() => {});
       sfx.pause();
       sfx.currentTime = 0;
@@ -74,8 +78,10 @@ const challengeContainer = document.getElementById('wordChallengeTiles');
 
 // --- Game state ---
 let gameSpeed    = 200;
-let paused       = false;
+let paused       = false; // Temporary pause used by input focus and animations.
+let manualPaused = false; // User-controlled pause button state.
 let overlayActive = true;
+let gameStarted  = false; // Starts on the player's first directional keypress.
 let playerScore  = 0;
 
 // Scrabble bag & points
@@ -196,7 +202,7 @@ let snake = [
   { x: 5, y: 5, letter: null }
 ];
 
-let direction = { x: 1, y: 0 };
+let direction = { x: 0, y: 0 };
 let nextDirection = { ...direction };
 let lettersOnBoard = [];
 
@@ -256,6 +262,7 @@ loadChallengeWords(() => {
 
   moveInterval = setInterval(moveSnake, gameSpeed);
   setInterval(spawnLetter, LETTER_SPAWN_RATE);
+
 
   requestAnimationFrame(drawLoop);
   wordInput.blur();
@@ -324,29 +331,16 @@ async function handleChallengeTimeout() {
 
   playSfx(sfxHeartLost);
 
-  // 2. Apply penalty for the missed word.
-  const penalty = currentChallenge
-    .split('')
-    .reduce((sum, ch) => sum + (points[ch] || 0), 0);
+  // Missing a challenge costs one heart, but does not deduct score.
 
-  playerScore -= penalty;
-  scoreValueEl.textContent = playerScore;
-
-  // 3. If out of lives, drop the inventory, freeze, refill, and teleport.
+  // 2. If out of lives, drop the inventory, freeze, refill, and teleport.
   if (lives === 0) {
     // Snapshot the current tail segments.
     const oldTail = snake.slice(1);
 
-    // Deduct inventory points.
-    let invPenalty = 0;
-
-    oldTail.forEach(seg => {
-      if (seg.letter) {
-        invPenalty += points[seg.letter] || 0;
-      }
-    });
-
-    playerScore -= invPenalty;
+    // Losing the final heart resets the score to zero.
+    // The dropped letters remain available on the board, but do not create a score penalty.
+    playerScore = 0;
     scoreValueEl.textContent = playerScore;
 
     // Spill each letter onto the board at its segment's position.
@@ -438,62 +432,136 @@ async function handleChallengeTimeout() {
 }
 
 function stopChallengeTimer() {
-  // Mark the challenge as resolved.
+  // Mark the challenge as resolved and clear all timer state.
   challengeActive = false;
+  challengeTimerPaused = false;
+  challengeDeadline = null;
+  challengeRemainingMs = challengeTime * 1000;
 
-  // Cancel the JavaScript countdown.
   clearTimeout(challengeInterval);
   challengeInterval = null;
 
-  // Cancel any pending timer animation start.
   clearTimeout(timerAnimationTimeout);
   timerAnimationTimeout = null;
 
   // Freeze the timer bar at its current position.
   const timerFill = document.getElementById('timerFill');
-
   if (timerFill) {
     const currentWidth = window.getComputedStyle(timerFill).width;
-
     timerFill.style.transition = 'none';
     timerFill.style.width = currentWidth;
   }
 }
 
+function scheduleChallengeCountdown(remainingMs) {
+  challengeRemainingMs = Math.max(0, remainingMs);
+  challengeDeadline = null;
+
+  const timerFill = document.getElementById('timerFill');
+  const remainingPercent = challengeTime > 0
+    ? (challengeRemainingMs / (challengeTime * 1000)) * 100
+    : 0;
+
+  if (timerFill) {
+    timerFill.style.transition = 'none';
+    timerFill.style.width = `${remainingPercent}%`;
+  }
+
+  // A short delay lets the frozen width render before the CSS transition begins.
+  timerAnimationTimeout = setTimeout(() => {
+    timerAnimationTimeout = null;
+
+    if (!challengeActive || challengeTimerPaused || manualPaused) return;
+
+    challengeDeadline = Date.now() + challengeRemainingMs;
+
+    if (timerFill) {
+      timerFill.getBoundingClientRect();
+      timerFill.style.transition = `width ${challengeRemainingMs}ms linear`;
+      timerFill.style.width = '0%';
+    }
+
+    challengeInterval = setTimeout(() => {
+      if (!challengeActive || challengeTimerPaused || manualPaused) return;
+
+      stopChallengeTimer();
+      handleChallengeTimeout();
+    }, challengeRemainingMs);
+  }, 50);
+}
+
 function startChallengeTimer() {
-  // Clear any previous timers before starting this challenge.
+  // Every new challenge starts with its full duration.
   clearTimeout(challengeInterval);
   clearTimeout(timerAnimationTimeout);
 
   challengeInterval = null;
   timerAnimationTimeout = null;
-  challengeActive = true;
+  challengeDeadline = null;
+  challengeRemainingMs = challengeTime * 1000;
 
   const timerFill = document.getElementById('timerFill');
-
   if (timerFill) {
     timerFill.style.transition = 'none';
     timerFill.style.width = '100%';
   }
 
-  // Start the visual bar and JavaScript deadline at the same moment.
-  timerAnimationTimeout = setTimeout(() => {
-    timerAnimationTimeout = null;
+  // The first challenge waits until the player makes the first move.
+  if (!gameStarted) {
+    challengeActive = false;
+    challengeTimerPaused = false;
+    return;
+  }
 
-    if (!challengeActive) return;
+  challengeActive = true;
 
-    if (timerFill) {
-      timerFill.style.transition = `width ${challengeTime}s linear`;
-      timerFill.style.width = '0%';
-    }
+  if (manualPaused) {
+    challengeTimerPaused = true;
+    return;
+  }
 
-    challengeInterval = setTimeout(() => {
-      if (!challengeActive) return;
+  challengeTimerPaused = false;
+  scheduleChallengeCountdown(challengeRemainingMs);
+}
 
-      stopChallengeTimer();
-      handleChallengeTimeout();
-    }, challengeTime * 1000);
-  }, 50);
+function pauseChallengeTimer() {
+  if (!challengeActive || challengeTimerPaused) return;
+
+  // Preserve the precise remaining time, including when the CSS bar is animating.
+  if (challengeDeadline !== null) {
+    challengeRemainingMs = Math.max(0, challengeDeadline - Date.now());
+  }
+
+  clearTimeout(challengeInterval);
+  challengeInterval = null;
+
+  clearTimeout(timerAnimationTimeout);
+  timerAnimationTimeout = null;
+  challengeDeadline = null;
+  challengeTimerPaused = true;
+
+  const timerFill = document.getElementById('timerFill');
+  if (timerFill) {
+    const remainingPercent = challengeTime > 0
+      ? (challengeRemainingMs / (challengeTime * 1000)) * 100
+      : 0;
+    timerFill.style.transition = 'none';
+    timerFill.style.width = `${remainingPercent}%`;
+  }
+}
+
+function resumeChallengeTimer() {
+  if (!challengeActive || !challengeTimerPaused) return;
+
+  challengeTimerPaused = false;
+
+  if (challengeRemainingMs <= 0) {
+    stopChallengeTimer();
+    handleChallengeTimeout();
+    return;
+  }
+
+  scheduleChallengeCountdown(challengeRemainingMs);
 }
 
 function renderChallenge() {
@@ -579,9 +647,9 @@ document.addEventListener('keydown', e => {
   const target = e.target;
   const isTypingInField = document.activeElement === wordInput || (
     target instanceof HTMLElement && (
-      target.matches('input, textarea, select') ||
-      target.isContentEditable ||
-      Boolean(target.closest('[contenteditable="true"]'))
+    target.matches('input, textarea, select') ||
+    target.isContentEditable ||
+    Boolean(target.closest('[contenteditable="true"]'))
     )
   );
 
@@ -608,11 +676,21 @@ document.addEventListener('keydown', e => {
 
   if (e.key === 'Tab') {
     e.preventDefault();
-    wordInput.focus();
+
+    if (document.activeElement === wordInput) {
+      // Leave the input and return keyboard focus to the arena.
+      // The input's blur handler resumes snake movement.
+      wordInput.blur();
+      canvas.focus({ preventScroll: true });
+    } else {
+      // Tab toggles into the word input from the game.
+      wordInput.focus();
+    }
+
     return;
   }
 
-  if (paused) {
+  if (paused || manualPaused) {
     return;
   }
 
@@ -630,6 +708,15 @@ document.addEventListener('keydown', e => {
 
   if (e.key === 'ArrowRight' && direction.x === 0) {
     nextDirection = { x: 1, y: 0 };
+  }
+
+  // The player, rather than the page load, starts the snake moving.
+  if (
+    !gameStarted &&
+    ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) &&
+    (nextDirection.x !== 0 || nextDirection.y !== 0)
+  ) {
+    gameStarted = true;
   }
 });
 
@@ -652,8 +739,13 @@ wordInput.addEventListener('keydown', async e => {
 
 // --- Snake Movement ---
 function moveSnake() {
-  if (paused) {
+  if (paused || manualPaused || !gameStarted) {
     return;
+  }
+
+  // The first movement tick starts the first challenge countdown.
+  if (!challengeActive) {
+    startChallengeTimer();
   }
 
   const newX = snake[0].x + nextDirection.x;
@@ -877,34 +969,21 @@ async function triggerInventoryLossAnimation() {
 
   await new Promise(r => setTimeout(r, 1400));
 
-  let deduction = 0;
-
-  tiles.forEach(t => {
-    const L = t.textContent.trim()[0];
-    const cnt = parseInt(
-      t.querySelector('.tile-count')?.textContent || '1',
-      10
-    );
-
-    deduction += (points[L] || 0) * cnt;
-  });
-
-  playerScore -= deduction;
-
+  // Self-collision drops the collected letters but does not deduct points.
+  // The score is left unchanged; updateInventory() refreshes it after respawn.
   letterInventoryEl.classList.remove('shake');
   letterInventoryEl.innerHTML = '';
-
-  scoreValueEl.textContent = playerScore;
 }
 
 // --- Word Submission & Scoring ---
 async function handleWordSubmission(input) {
-  if (!input || !challengeActive) {
+  if (!input || !challengeActive || manualPaused) {
     return;
   }
 
   // Only the exact challenge word is acceptable.
   if (input !== currentChallenge) {
+    playSfx(sfxErrorSubmission);
     flashInputError();
     return;
   }
@@ -924,6 +1003,7 @@ async function handleWordSubmission(input) {
     );
 
     if (!m) {
+      playSfx(sfxErrorSubmission);
       flashInputError();
       return;
     }
@@ -1007,15 +1087,21 @@ renderLives();
 
 // =========================================================================
 // GAME CONTROL BUTTONS
-// These handlers expect resetButton, muteButton/muteIcon, and shareButton
-// in the HTML.
+// These handlers expect resetButton and muteButton/muteIcon in the HTML.
+// Single-player home navigation is handled by index.html.
 // =========================================================================
 
 // RESET BUTTON
 const resetButton = document.getElementById('resetButton');
 
 function handleResetButton() {
-  // Reloading clears the score, lives, timers, board, and challenge state.
+  // Reload all single-player state, then have index.html reopen Single Player.
+  try {
+    sessionStorage.setItem('scrabbleSnakeRestartSinglePlayer', '1');
+  } catch (error) {
+    console.warn('Could not preserve the selected mode during reset:', error);
+  }
+
   window.location.reload();
 }
 
@@ -1080,48 +1166,40 @@ if (muteButton) {
 // Set the correct icon and accessible label on initial page load.
 updateMuteButton();
 
-// SHARE BUTTON
-const shareButton = document.getElementById('shareButton');
+// PAUSE / RESUME BUTTON
+const pauseButton = document.getElementById('pauseButton');
+const pauseIcon = document.getElementById('pauseIcon');
 
-async function handleShareButton() {
-  const shareData = {
-    title: 'Scrabble Snake',
-    text: 'Come play Scrabble Snake!',
-    url: window.location.href
-  };
+const pauseSvg = '<path d="M8 5v14M16 5v14"/>';
+const playSvg = '<path d="m8 5 11 7-11 7V5Z"/>';
 
-  try {
-    if (navigator.share) {
-      await navigator.share(shareData);
-      return;
-    }
+function updatePauseButton() {
+  if (pauseIcon) {
+    pauseIcon.innerHTML = manualPaused ? playSvg : pauseSvg;
+  }
 
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(window.location.href);
-
-      shareButton.title = 'Link copied!';
-      shareButton.setAttribute('aria-label', 'Link copied!');
-
-      setTimeout(() => {
-        shareButton.title = 'Share game';
-        shareButton.setAttribute('aria-label', 'Share game');
-      }, 2000);
-
-      return;
-    }
-
-    window.prompt(
-      'Copy this link to share the game:',
-      window.location.href
-    );
-  } catch (error) {
-    // Closing the native share sheet is not an error.
-    if (error.name !== 'AbortError') {
-      console.error('Sharing failed:', error);
-    }
+  if (pauseButton) {
+    const label = manualPaused ? 'Resume game' : 'Pause game';
+    pauseButton.title = label;
+    pauseButton.setAttribute('aria-label', label);
+    pauseButton.setAttribute('aria-pressed', String(manualPaused));
   }
 }
 
-if (shareButton) {
-  shareButton.addEventListener('click', handleShareButton);
+function togglePause() {
+  manualPaused = !manualPaused;
+
+  if (manualPaused) {
+    pauseChallengeTimer();
+  } else {
+    resumeChallengeTimer();
+  }
+
+  updatePauseButton();
 }
+
+if (pauseButton) {
+  pauseButton.addEventListener('click', togglePause);
+}
+
+updatePauseButton();

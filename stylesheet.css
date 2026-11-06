@@ -52,7 +52,7 @@ html, body {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 200px;
+  width: 340px;
   height: 200px;
   transform: translate(-50%, -50%);
   pointer-events: none;
@@ -89,30 +89,39 @@ html, body {
   height: 50px;
   font-size: 18px;
   line-height: 1;
-  top: 120px;           /* push it below the Up/Down arrows */
-  left: -20%;            /* center horizontally */
-  transform: translateX(-50%);
+  top: 120px;
+  left: 0;
+  transform: none;
 }
 
 /* Now position each manually */
 #startOverlay .up {
   top: 65px;
-  left: 75px;
+  left: 145px;
 }
 
 #startOverlay .left {
   top: 120px;
-  left: 20px;
+  left: 90px;
 }
 
 #startOverlay .down {
   top: 120px;
-  left: 75px;
+  left: 145px;
 }
 
 #startOverlay .right {
   top: 120px;
-  left: 130px;
+  left: 200px;
+}
+
+#startOverlay .enter {
+  top: 120px;
+  left: 260px;
+  width: 80px;
+  height: 50px;
+  font-size: 18px;
+  line-height: 1;
 }
 
 
@@ -505,3 +514,26 @@ html, body {
   75%     { transform: translate(4px,0); }
 }
 
+
+
+/* Single-player logo also serves as a link back to game-mode selection. */
+.single-home-title {
+  cursor: pointer;
+  user-select: none;
+  transition: transform .15s ease;
+}
+
+/* Match the subtle lift used by the multiplayer heading. */
+.single-home-title:hover {
+  transform: translateY(-2px);
+}
+
+.single-home-title:focus-visible {
+  outline: 2px solid #999;
+  outline-offset: 7px;
+  border-radius: 4px;
+}
+
+#game:focus {
+  outline: none;
+}
