@@ -6,7 +6,7 @@
     snakeCount: 15,
 
     // Only words with at least this many letters are used.
-    minimumWordLength: 2,
+    minimumWordLength: 5,
 
     // Match the tile scale and movement feel of the main game.
     tileSize: 20,
