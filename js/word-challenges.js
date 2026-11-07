@@ -59,7 +59,6 @@ function unlockAudio() {
       sfx.currentTime = 0;
     });
 
-    bgMusic.play().catch(() => {});
   }
 
   window.removeEventListener('keydown', unlockAudio);
@@ -242,6 +241,11 @@ function startWordChallengeGame() {
   direction = { x: 1, y: 0 };
   nextDirection = { ...direction };
   gameStarted = true;
+
+  // Start background music from the Start Match click, which is a user gesture.
+  if (!isMuted) {
+    bgMusic.play().catch(() => {});
+  }
 
   if (wordChallengeStartOverlay) wordChallengeStartOverlay.hidden = true;
   if (wordChallengePauseOverlay) wordChallengePauseOverlay.hidden = true;
@@ -1341,8 +1345,10 @@ function toggleMute() {
     clip.muted = isMuted;
   });
 
-  if (!isMuted) {
+  if (!isMuted && !manualPaused) {
     bgMusic.play().catch(() => {});
+  } else {
+    bgMusic.pause();
   }
 
   updateMuteButton();
@@ -1391,11 +1397,17 @@ function togglePause() {
 
   if (manualPaused) {
     pauseChallengeTimer();
+    bgMusic.pause();
     if (wordChallengePauseOverlay) wordChallengePauseOverlay.hidden = false;
     if (wordChallengeResumeButton) wordChallengeResumeButton.focus();
   } else {
     if (wordChallengePauseOverlay) wordChallengePauseOverlay.hidden = true;
     resumeChallengeTimer();
+
+    if (!isMuted) {
+      bgMusic.play().catch(() => {});
+    }
+
     canvas.focus({ preventScroll: true });
   }
 
