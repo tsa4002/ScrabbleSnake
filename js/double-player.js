@@ -1,20 +1,18 @@
 (() => {
   'use strict';
 
-  // The dictionary lives beside index.html. Resolve that location from the
-  // page first, then try the multiplayer script directory as a fallback.
-  // This avoids relying on document.currentScript while this file is loaded
-  // dynamically by the mode-selection screen.
+  // The shared dictionary lives at the project root. Resolve it from the
+  // standalone game page first, then use the path relative to this script.
   const multiplayerScriptUrl = document.currentScript && document.currentScript.src
     ? document.currentScript.src
     : null;
   const WORDLIST_URLS = [...new Set([
     new URL('wordlist.txt', document.baseURI || window.location.href).href,
-    ...(multiplayerScriptUrl ? [new URL('wordlist.txt', multiplayerScriptUrl).href] : [])
+    ...(multiplayerScriptUrl ? [new URL('../wordlist.txt', multiplayerScriptUrl).href] : [])
   ])];
 
   // ======================================================================
-  // MULTIPLAYER CUSTOMIZATION
+  // DOUBLE PLAYER CUSTOMIZATION
   // Adjust these values to tune the multiplayer game.
   // ======================================================================
   const CONFIG = {
@@ -35,7 +33,7 @@
 
   // Letter-drop weights. Increase a letter's number to make it appear more
   // often, decrease it to make it rarer, or set it to 0 to remove it.
-  // These are the same letter frequencies used by the current single-player game.
+  // These are the same letter frequencies used by the current Single Player game.
   const LETTER_DISTRIBUTION = {
     A: 9, B: 3, C: 3, D: 4, E: 10, F: 3, G: 3, H: 3, I: 9,
     J: 3, K: 3, L: 4, M: 3, N: 6, O: 8, P: 3, Q: 3, R: 6,
@@ -514,6 +512,9 @@
       } else {
         player.snake = plan.nextSnake;
         dropped.push(...plan.cutSegments);
+        // A self-collision cuts the snake but does not kill the player.
+        // Play the same scatter sound used for wall/player collisions.
+        if (plan.cutSegments.length) playSfx(sfxCrash);
         if (plan.pickupLetter) {
           player.headBounce = 15;
           playSfx(sfxLetter);
@@ -610,7 +611,7 @@
       .join('');
 
     if (word.length < MIN_WORD_LENGTH) {
-      showPlayerFeedback(player, `Not enough letters in your snake. Collect at least ${MIN_WORD_LENGTH}.`, 'error');
+      showPlayerFeedback(player, `Collect at least ${MIN_WORD_LENGTH} letters!`, 'error');
       playSfx(sfxErrorSubmission);
       return;
     }
@@ -982,7 +983,7 @@
       <div class="multi-pause-card">
         <div class="multi-pause-content">
           <section class="multi-pause-section">
-            <h2>Objective</h2>
+            <h2>Guide</h2>
             <ul>
               <li>Submit words after collecting their letter tiles <em>in order</em>.</li>
               <li>A valid word scores the sum of its letter values. The point system and accepted words are sourced from Scrabble.</li>

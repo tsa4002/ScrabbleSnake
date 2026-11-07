@@ -1,0 +1,730 @@
+/* ==========================================================================
+   WORD CHALLENGES
+   ========================================================================== */
+
+.word-challenges-screen {
+  position: relative;
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Sidebar (game board panel) */
+.word-challenges-screen .sidebar {
+  position: relative;
+  width: 25%;
+  background: white;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  border-right: 2px solid #ccc;
+  overflow-y: auto;
+}
+
+/* Arena (canvas container) */
+.word-challenges-screen .game-arena {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  margin: 20px;
+  position: relative;
+  display: block;
+  background: #000;
+  border: 0;
+  border-radius: 30px;
+  overflow: hidden;
+  isolation: isolate;
+  /* Keep the canvas and dashboard overlays inside the same rounded stage. */
+  clip-path: inset(0 round 30px);
+  -webkit-clip-path: inset(0 round 30px);
+}
+
+/* Canvas */
+.word-challenges-screen #game {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: #000;
+}
+
+/* ==========================================================================
+   HEADERS & TITLES
+   ========================================================================== */
+.word-challenges-screen .sidebar h1 {
+  font-size: 24px;
+  margin-bottom: 16px;
+}
+
+.word-challenges-screen .sidebar h2 {
+  font-size: 18px;
+  margin-bottom: 18px;
+}
+
+/* ----------------------------------------------------------------------------
+   WORD CHALLENGE
+   ---------------------------------------------------------------------------- */
+
+.word-challenge {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  margin-top: 20px;
+}
+
+#wordChallengeTiles {
+  display: flex;
+  gap: 4px;
+}
+
+.timer-bar {
+  height: 8px;
+  width: 100%;
+  background: #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+#timerFill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(to right, #f66, #fa0);
+  transition: width 1s linear;
+}
+
+.heart {
+  font-size: 20px;
+  line-height: 1;
+  color: red;
+  text-shadow:
+     1px  1px 0 black,
+    -1px  1px 0 black,
+     1px -1px 0 black,
+    -1px -1px 0 black;
+}
+
+.heart.empty {
+  color: #555;
+  text-shadow: none;
+}
+
+/* New wrapper for title + hearts, side by side */
+.challenge-header {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin-left: auto;
+}
+
+/* Push the hearts to the right */
+.challenge-header #lifeContainer {
+  margin-left: auto;
+}
+
+#lifeContainer .heart {
+  transition: color .2s ease;
+}
+
+/* ==========================================================================
+   INVENTORY (Collected Letters)
+   ========================================================================== */
+.inventory {
+  margin-top: 30px;
+  margin-bottom: 124px;
+}
+
+/* Collected tile container needs relative for absolute-fall */
+#letterInventory,
+.tile-inventory {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tile {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  background-color: #ffe6a8;
+  border: 2px solid #333;
+  border-radius: 4px;
+  color: #000;
+  font-size: 22px;
+  font-weight: bold;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Courier New', monospace;
+}
+
+.tile-points {
+  position: absolute;
+  bottom: -2.5px;
+  right: 1px;
+  font-size: 12px;
+  font-weight: bold;
+  opacity: 0.7;
+}
+
+.tile-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background-color: #333;
+  color: white;
+  font-size: 12px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: sans-serif;
+}
+
+/* ==========================================================================
+   SUBMISSION AREA
+   ========================================================================== */
+
+.submission-area {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 20px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  background: rgba(255,255,255,0.95);
+  padding: 8px;
+  border-radius: 4px;
+  z-index: 1;
+}
+
+#wordInput {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  border: 2px solid #888;
+  border-radius: 4px;
+  background: #fff;
+  color: black;
+  transition: border 0.3s, box-shadow 0.3s;
+}
+
+#wordInput:focus {
+  outline: none;
+  border-color: #555;
+}
+
+#wordInput.success {
+  border-color: rgb(25, 141, 25);
+  box-shadow: 0 0 8px rgba(18, 105, 18, 0.65);
+}
+
+#wordInput.error {
+  border-color: red;
+  animation: shake 0.3s;
+}
+
+/* ==========================================================================
+   SUBMISSION FOOTER: SCORE + CONTROLS
+   ========================================================================== */
+
+.submission-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+/* ==========================================================================
+   SCORE DISPLAY
+   ========================================================================== */
+
+.score-display {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
+  background: transparent;
+  padding: 2px;
+  border: none;
+  margin-left: -7px;
+}
+
+.score-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.score-tiles {
+  display: flex;
+  gap: 2px;
+}
+
+.score-display .tile {
+  width: 22px;
+  height: 22px;
+  background-color: #ffe6a8;
+  border: 1px solid #333;
+  border-radius: 3px;
+  color: #000;
+  font-size: 10px;
+  font-weight: bold;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Courier New', monospace;
+}
+
+.score-sep {
+  margin: 2px;
+  font-size: 15px;
+  color: #333;
+}
+
+.score-value {
+  font-size: 15x;
+  font-weight: bold;
+  color: #333;
+  margin-left: 3px;
+}
+
+/* ==========================================================================
+   ANIMATIONS
+   ========================================================================== */
+/* Input shake */
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  25%,75% { transform: translateX(-5px); }
+  50%     { transform: translateX(5px); }
+}
+
+/* Tile shake */
+@keyframes tile-shake {
+  0%,100% { transform: translateX(0); }
+  20%,60% { transform: translateX(-6px); }
+  40%,80% { transform: translateX(6px); }
+}
+
+#letterInventory.shake .tile {
+  animation: tile-shake 0.6s ease;
+}
+
+/* Tile fall, absolutely positioned so it will not shift layout */
+@keyframes tile-fall {
+  to {
+    transform: translateY(120vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+.tile.fall {
+  animation: tile-fall 1.5s ease forwards !important;
+  z-index: 10;
+}
+
+/* Wiggle for barrier letters */
+.letter.wiggle {
+  animation: blocked-wiggle 0.4s ease;
+}
+
+@keyframes blocked-wiggle {
+  0%,100% { transform: translate(0,0); }
+  25%     { transform: translate(-4px,0); }
+  75%     { transform: translate(4px,0); }
+}
+
+/* Single-player logo also serves as a link back to game-mode selection. */
+.single-home-title {
+  cursor: pointer;
+  user-select: none;
+  transition: transform .15s ease;
+}
+
+/* Match the subtle lift used by the multiplayer heading. */
+.single-home-title:hover {
+  transform: translateY(-2px);
+}
+
+.single-home-title:focus-visible {
+  outline: 2px solid #999;
+  outline-offset: 7px;
+  border-radius: 4px;
+}
+
+#game:focus {
+  outline: none;
+}
+
+/* --------------------------------------------------------------------------
+   WORD CHALLENGE START AND PAUSE DASHBOARDS
+   -------------------------------------------------------------------------- */
+.wc-start-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: rgba(0, 0, 0, .86);
+}
+
+.wc-start-overlay[hidden] {
+  display: none;
+}
+
+.wc-start-card {
+  width: min(470px, 100%);
+  max-height: calc(100% - 24px);
+  padding: 30px;
+  overflow-y: auto;
+  border: 1px solid #666;
+  border-radius: 10px;
+  background: #171717;
+  text-align: center;
+}
+
+.wc-start-card h1 {
+  margin: 0 0 10px;
+  color: #fff;
+  font-size: 29px;
+}
+
+.wc-start-card > p:not(.dictionary-status) {
+  margin-bottom: 0;
+  color: #ccc;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.wc-control-summary {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  max-width: 230px;
+  margin: 18px auto 12px;
+  text-align: center;
+}
+
+/* Match the Single Player controls panel: dark card, yellow heading, light
+   instructions beneath it. The yellow is an accent, not the panel background. */
+.wc-control-summary div {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 12px 8px;
+  border: 1px solid #555;
+  border-radius: 5px;
+  background: #222;
+  color: #ddd;
+  font-size: 12px;
+}
+
+.wc-control-summary strong {
+  color: #ffe6a8;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 1px;
+}
+
+.wc-control-summary span {
+  color: #ddd;
+  line-height: 1.4;
+}
+
+.wc-control-summary kbd {
+  display: inline-block;
+  min-width: 19px;
+  margin-right: 2px;
+  padding: 1px 4px;
+  border: 1px solid #777;
+  border-radius: 3px;
+  color: #ffe6a8;
+  background: #303030;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  text-align: center;
+  box-shadow: 0 2px 0 #111;
+}
+
+.wc-start-card .dictionary-status {
+  max-width: 100%;
+  margin-top: 12px;
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  color: #aaa;
+}
+
+.word-challenge-duration-control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.word-challenge-duration-control label {
+  color: #999;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+}
+
+.wc-duration-colon {
+  display: inline-block;
+  width: 15px;
+  color: #ffe6a8;
+  text-align: center;
+  user-select: none;
+  pointer-events: none;
+}
+
+.wc-duration-error {
+  min-height: 13px;
+  color: #ff7777;
+  font-size: 10px;
+}
+
+#wordChallengeStartButton,
+#wordChallengeResumeButton {
+  min-width: 145px;
+  padding: 10px 22px;
+  border: 2px solid #ffe6a8;
+  border-radius: 5px;
+  color: #111;
+  background: #ffe6a8;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform .15s ease, background .15s ease;
+}
+
+#wordChallengeStartButton:hover:not(:disabled),
+#wordChallengeResumeButton:hover {
+  background: #fff0c7;
+  transform: translateY(-1px);
+}
+
+#wordChallengeStartButton:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.word-challenge-duration-control {
+  margin-top: 14px;
+}
+
+.word-challenge-duration-input {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 132px;
+  padding: 7px 9px;
+  border: 1px solid #555;
+  border-radius: 5px;
+  color: #ffe6a8;
+  background: #222;
+  font-family: 'Courier New', monospace;
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 2px;
+}
+
+.word-challenge-duration-input:focus-within {
+  border-color: #ffe6a8;
+  box-shadow: 0 0 0 2px rgba(255, 230, 168, .12);
+}
+
+.word-challenge-duration-input[aria-invalid="true"] {
+  border-color: #d95b5b;
+}
+
+.word-challenge-duration-input input {
+  width: 39px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  color: #ffe6a8;
+  background: transparent;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  letter-spacing: 1px;
+  caret-color: #ffe6a8;
+}
+
+.word-challenge-duration-input input:focus {
+  color: #fff;
+}
+
+.wc-pause-overlay[hidden] {
+  display: none;
+}
+
+#wordChallengeResumeButton:focus-visible,
+#wordChallengeStartButton:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+@media (max-width: 560px) {
+  .wc-start-overlay {
+    padding: 10px;
+  }
+
+  .wc-start-card {
+    padding: 18px 16px;
+  }
+
+  .wc-start-card h1 {
+    font-size: 24px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   WORD CHALLENGES PAUSE DASHBOARD
+   -------------------------------------------------------------------------- */
+.wc-pause-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow: hidden;
+  color: #f7f4ec;
+  background: rgba(0, 0, 0, .9);
+}
+
+.wc-pause-card {
+  width: min(470px, 100%);
+  max-height: calc(100% - 24px);
+  padding: 20px 22px 16px;
+  overflow-y: auto;
+  border: 1px solid #666;
+  border-radius: 9px;
+  background: #171717;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .5);
+}
+
+.wc-pause-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wc-pause-section h2 {
+  margin: 0 0 7px;
+  color: #ffe6a8;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.wc-pause-section ul {
+  margin: 0;
+  padding-left: 19px;
+  color: #e4e1d9;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.wc-pause-section li + li {
+  margin-top: 5px;
+}
+
+.wc-pause-section strong,
+.wc-pause-section em {
+  color: #fff;
+}
+
+.wc-pause-section kbd {
+  display: inline-block;
+  min-width: 19px;
+  margin-right: 2px;
+  padding: 1px 4px;
+  border: 1px solid #777;
+  border-radius: 3px;
+  color: #ffe6a8;
+  background: #303030;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  text-align: center;
+}
+
+.wc-pause-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+
+#wordChallengeResetButton,
+#wordChallengeResumeButton {
+  min-width: 120px;
+  padding: 10px 22px;
+  border: 2px solid #ffe6a8;
+  border-radius: 5px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform .15s ease, background .15s ease;
+}
+
+/* Resume: yellow background, dark text. */
+#wordChallengeResumeButton {
+  color: #111;
+  background: #ffe6a8;
+}
+
+#wordChallengeResumeButton:hover {
+  background: #fff0c7;
+  transform: translateY(-1px);
+}
+
+/* Reset: dark grey background, yellow text. */
+#wordChallengeResetButton {
+  color: #ffe6a8;
+  background: #303030;
+}
+
+#wordChallengeResetButton:hover {
+  background: #444;
+  transform: translateY(-1px);
+}
+
+#wordChallengeResetButton:focus-visible,
+#wordChallengeResumeButton:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .wc-pause-card {
+    padding: 16px 15px 13px;
+  }
+
+  .wc-pause-content {
+    gap: 12px;
+  }
+
+  .wc-pause-section ul {
+    font-size: 12px;
+  }
+}

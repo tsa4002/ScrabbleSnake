@@ -4,386 +4,49 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Scrabble Snake</title>
-  <link rel="stylesheet" href="stylesheet.css" />
-  <link rel="stylesheet" href="multiplayer.css" />
-  <link rel="stylesheet" href="home-animation.css" />
+  <link rel="stylesheet" href="css/shared.css" />
+  <link rel="stylesheet" href="css/mode-selection.css" />
   <link rel="icon" href="favicon.png" />
 </head>
 <body>
-
-  <!-- Mode selection -->
-  <main id="modeScreen" class="mode-screen">
-    <canvas id="homeSnakeCanvas" aria-hidden="true"></canvas>
-    <div class="mode-card">
-      <div class="title-tile-wrapper mode-logo">
-        <div class="title-line">
-          <span class="title-tile" style="background-color:#ffe6a8; transform:rotate(-8deg);">S</span>
-          <span class="title-tile" style="background-color:#ffe6a8; transform:rotate(6deg);">C</span>
-          <span class="title-tile" style="background-color:#ffe6a8; transform:rotate(-4deg);">R</span>
-          <span class="title-tile" style="background-color:#ffe6a8; transform:rotate(5deg);">A</span>
-          <span class="title-tile" style="background-color:#ffe6a8; transform:rotate(-5deg);">B</span>
-          <span class="title-tile" style="background-color:#ffe6a8; transform:rotate(4deg);">B</span>
-          <span class="title-tile" style="background-color:#ffe6a8; transform:rotate(-6deg);">L</span>
-          <span class="title-tile" style="background-color:#ffe6a8; transform:rotate(8deg);">E</span>
-        </div>
-        <div class="title-line indent">
-          <span class="title-tile" style="background-color:#D2AFB5;">S</span>
-          <span class="title-tile" style="background-color:#B6CBCC;">N</span>
-          <span class="title-tile" style="background-color:#ffe6a8;">A</span>
-          <span class="title-tile" style="background-color:#D8D5C2;">K</span>
-          <span class="title-tile" style="background-color:#05A4CB;">E</span>
-        </div>
-      </div>
-
-      <h1>Choose your game</h1>
-      <p class="mode-intro">Collect letters, build words, and stay out of trouble.</p>
-
-      <div class="mode-options">
-        <button id="singleModeButton" class="mode-option" type="button">
-          <span class="mode-option-title">Single Player</span>
-          <span class="mode-option-description">The original word challenge.</span>
-        </button>
-        <button id="multiModeButton" class="mode-option" type="button">
-          <span class="mode-option-title">2 Players</span>
-          <span class="mode-option-description">Compete in the same arena.</span>
-        </button>
-      </div>
-    </div>
-  </main>
-
-  <!-- Existing single-player interface. game.js is loaded only after this mode is selected. -->
-  <div id="singlePlayerScreen" class="container" hidden>
-    <div class="sidebar">
-
-      <div
-        id="singleHomeTitle"
-        class="title-tile-wrapper single-home-title"
-        role="button"
-        tabindex="0"
-        aria-label="Return to game mode selection"
-        title="Return to game mode selection"
-      >
-        <div class="title-line">
-          <span class="title-tile" style="background-color: #ffe6a8; transform: rotate(-8deg);">S</span>
-          <span class="title-tile" style="background-color: #ffe6a8; transform: rotate(6deg);">C</span>
-          <span class="title-tile" style="background-color: #ffe6a8; transform: rotate(-4deg);">R</span>
-          <span class="title-tile" style="background-color: #ffe6a8; transform: rotate(5deg);">A</span>
-          <span class="title-tile" style="background-color: #ffe6a8; transform: rotate(-5deg);">B</span>
-          <span class="title-tile" style="background-color: #ffe6a8; transform: rotate(4deg);">B</span>
-          <span class="title-tile" style="background-color: #ffe6a8; transform: rotate(-6deg);">L</span>
-          <span class="title-tile" style="background-color: #ffe6a8; transform: rotate(8deg);">E</span>
-        </div>
-        <div class="title-line indent">
-          <span class="title-tile" style="background-color: #D2AFB5;">S</span>
-          <span class="title-tile" style="background-color: #B6CBCC;">N</span>
-          <span class="title-tile" style="background-color: #ffe6a8;">A</span>
-          <span class="title-tile" style="background-color: #D8D5C2;">K</span>
-          <span class="title-tile" style="background-color: #05A4CB;">E</span>
-        </div>
-      </div>
-
-      <div class="word-challenge">
-        <div class="timer-bar">
-          <div id="timerFill"></div>
-        </div>
-        <div class="challenge-header">
-          <h3>Word Challenge</h3>
-          <div id="lifeContainer">
-            <span class="heart full">❤</span>
-            <span class="heart full">❤</span>
-            <span class="heart full">❤</span>
-          </div>
-        </div>
-        <div id="wordChallengeTiles"></div>
-      </div>
-
-      <div class="inventory">
-        <h3>Letters Collected</h3>
-        <div id="letterInventory" class="tile-inventory"></div>
-      </div>
-
-      <div class="submission-area">
-        <input id="wordInput" type="text" placeholder="Spell the word here and press enter!" />
-        <div class="submission-footer">
-          <div id="playerScore" class="score-display">
-            <img src="favicon.png" alt="S" class="score-icon" />
-            <div class="score-tiles">
-              <div class="tile">C</div>
-              <div class="tile">O</div>
-              <div class="tile">R</div>
-              <div class="tile">E</div>
-            </div>
-            <span class="score-sep">:</span>
-            <span id="scoreValue" class="score-value">0</span>
-          </div>
-
-          <div class="game-controls">
-            <button id="singleHomeButton" class="control-button" title="Choose game mode" aria-label="Choose game mode" type="button">
-              <svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h14V9"/><path d="M9 21v-7h6v7"/></svg>
-            </button>
-            <button id="muteButton" class="control-button" title="Mute sound" aria-label="Mute sound" type="button">
-              <svg id="muteIcon" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
-            </button>
-            <button id="pauseButton" class="control-button" title="Pause game" aria-label="Pause game" aria-pressed="false" type="button">
-              <svg id="pauseIcon" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="game-arena">
-      <canvas id="game" tabindex="-1" aria-label="Single-player game arena"></canvas>
-      <div id="startOverlay">
-        <div class="arrow up">↑</div>
-        <div class="arrow left">←</div>
-        <div class="arrow down">↓</div>
-        <div class="arrow right">→</div>
-        <div class="arrow tab">Tab</div>
-        <div class="arrow enter">Enter</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Local multiplayer interface -->
-  <section id="multiGameScreen" class="multiplayer-screen" hidden>
-    <header class="multi-topbar">
-      <section class="multi-player-score player-one" aria-label="Player 1 score">
-        <div class="multi-score-line"><span id="p1Score">0</span><small>PTS</small></div>
-        <div class="multi-player-label">PLAYER 1</div>
-        <div id="p1Feedback" class="player-feedback" aria-live="polite"></div>
-      </section>
-
-      <button id="multiHomeButton" class="multi-title-home" type="button" aria-label="Return to game mode selection">
-        <span class="title-tile-wrapper multi-logo">
-          <span class="title-line">
-            <span class="title-tile" style="background-color:#ffe6a8; transform:rotate(-8deg);">S</span>
-            <span class="title-tile" style="background-color:#ffe6a8; transform:rotate(6deg);">C</span>
-            <span class="title-tile" style="background-color:#ffe6a8; transform:rotate(-4deg);">R</span>
-            <span class="title-tile" style="background-color:#ffe6a8; transform:rotate(5deg);">A</span>
-            <span class="title-tile" style="background-color:#ffe6a8; transform:rotate(-5deg);">B</span>
-            <span class="title-tile" style="background-color:#ffe6a8; transform:rotate(4deg);">B</span>
-            <span class="title-tile" style="background-color:#ffe6a8; transform:rotate(-6deg);">L</span>
-            <span class="title-tile" style="background-color:#ffe6a8; transform:rotate(8deg);">E</span>
-          </span>
-          <span class="title-line indent">
-            <span class="title-tile" style="background-color:#D2AFB5;">S</span>
-            <span class="title-tile" style="background-color:#B6CBCC;">N</span>
-            <span class="title-tile" style="background-color:#ffe6a8;">A</span>
-            <span class="title-tile" style="background-color:#D8D5C2;">K</span>
-            <span class="title-tile" style="background-color:#05A4CB;">E</span>
-          </span>
-        </span>
-      </button>
-
-      <section class="multi-player-score player-two" aria-label="Player 2 score">
-        <div class="multi-score-line"><span id="p2Score">0</span><small>PTS</small></div>
-        <div class="multi-player-label">PLAYER 2</div>
-        <div id="p2Feedback" class="player-feedback" aria-live="polite"></div>
-      </section>
-    </header>
-
-    <main id="multiGameArena" class="multi-game-area">
-      <canvas id="multiGameCanvas"></canvas>
-      <div id="multiStartOverlay" class="multi-start-overlay">
-        <div class="multi-start-card">
-          <p class="multi-eyebrow">LOCAL MULTIPLAYER</p>
-          <h1>Ready to compete?</h1>
-          <p>Submit words after collecting their letter tiles, <em>in order!</em></p>
-          <div class="multi-control-summary">
-            <div>
-              <strong>PLAYER 1</strong>
-              <span>Arrow keys to move</span>
-              <span>Enter to submit</span>
-            </div>
-            <div>
-              <strong>PLAYER 2</strong>
-              <span>W A S D to move</span>
-              <span>Ctrl to submit</span>
-            </div>
-          </div>
-          <p id="multiDictionaryStatus" class="dictionary-status">Loading word list...</p>
-          <button id="multiStartButton" type="button" disabled>Start match</button>
-          <div id="multiDurationHomeSlot">
-            <div class="multi-duration-control">
-            <label for="multiMatchMinutes">MATCH DURATION</label>
-            <div id="multiMatchDuration" class="multi-duration-input" aria-label="Match duration, maximum ten minutes">
-              <input
-                id="multiMatchMinutes"
-                type="text"
-                inputmode="numeric"
-                autocomplete="off"
-                maxlength="2"
-                value="02"
-                aria-label="Minutes"
-                aria-describedby="multiMatchDurationError"
-              />
-              <span class="multi-duration-colon" aria-hidden="true">:</span>
-              <input
-                id="multiMatchSeconds"
-                type="text"
-                inputmode="numeric"
-                autocomplete="off"
-                maxlength="2"
-                value="30"
-                aria-label="Seconds"
-                aria-describedby="multiMatchDurationError"
-              />
-            </div>
-            <span id="multiMatchDurationError" class="multi-duration-error" aria-live="polite"></span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div id="multiResultsOverlay" class="multi-results-overlay" hidden>
-        <div class="multi-results-card" role="dialog" aria-modal="true" aria-labelledby="multiResultsTitle">
-          <p class="multi-eyebrow">MATCH COMPLETE</p>
-          <h1 id="multiResultsTitle">Match results</h1>
-
-          <section class="multi-results-player player-one-results" aria-label="Player 1 results">
-            <header class="multi-results-player-header">
-              <h2>PLAYER 1</h2>
-              <div class="multi-results-total"><span id="multiResultsP1Score">0</span><small>PTS</small></div>
-            </header>
-            <div id="multiResultsP1Words" class="multi-results-words" aria-label="Player 1 submitted words"></div>
-          </section>
-
-          <section class="multi-results-player player-two-results" aria-label="Player 2 results">
-            <header class="multi-results-player-header">
-              <h2>PLAYER 2</h2>
-              <div class="multi-results-total"><span id="multiResultsP2Score">0</span><small>PTS</small></div>
-            </header>
-            <div id="multiResultsP2Words" class="multi-results-words" aria-label="Player 2 submitted words"></div>
-          </section>
-
-          <footer class="multi-results-footer">
-            <div id="multiResultsDurationSlot" class="multi-results-duration-slot"></div>
-            <button id="multiResultsStartButton" type="button" disabled>Start match</button>
-          </footer>
-        </div>
-      </div>
-    </main>
-
-    <div id="multiMatchTimer" class="multi-match-timer" hidden aria-label="Match time remaining">
-      <div class="multi-match-timer-track">
-        <div id="multiMatchTimerFill" class="multi-match-timer-fill"></div>
-      </div>
-    </div>
-
-      <footer class="multi-bottom-controls">
-        <div class="game-controls">
-          <button id="multiHomeIconButton" class="control-button" type="button"
-            title="Home" aria-label="Return to game mode selection">
-            <svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h14V9"/><path d="M9 21v-7h6v7"/></svg>
-          </button>
-          <button id="multiMuteButton" class="control-button" type="button"
-            title="Mute sound" aria-label="Mute sound">
-            <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
-          </button>
-          <button id="multiPauseButton" class="control-button" type="button"
-            title="Pause game" aria-label="Pause game" disabled>
-            <svg viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></svg>
-          </button>
-          <button id="multiResetButton" class="control-button" type="button"
-            title="Restart match" aria-label="Restart match">
-            <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
-          </button>
-        </div>
-      </footer>
-
-  </section>
-
-  <script src="home-animation.js"></script>
-  <script>
-    (() => {
-      const modeScreen = document.getElementById('modeScreen');
-      const singleScreen = document.getElementById('singlePlayerScreen');
-      const multiScreen = document.getElementById('multiGameScreen');
-      let multiScriptLoaded = false;
-      let singleScriptLoaded = false;
-
-      function loadScript(src, onload) {
-        const script = document.createElement('script');
-        script.src = src;
-        script.onload = onload || null;
-        script.onerror = () => {
-          alert(`Could not load ${src}. Check that the file is in the Scrabble Snake folder.`);
-        };
-        document.body.appendChild(script);
-      }
-
-      document.getElementById('singleModeButton').addEventListener('click', () => {
-        modeScreen.hidden = true;
-        singleScreen.hidden = false;
-        if (!singleScriptLoaded) {
-          singleScriptLoaded = true;
-          loadScript('game.js');
-        }
-      });
-
-      document.getElementById('multiModeButton').addEventListener('click', () => {
-        modeScreen.hidden = true;
-        multiScreen.hidden = false;
-        if (window.startMultiplayerGame) {
-          window.startMultiplayerGame();
-        } else if (!multiScriptLoaded) {
-          multiScriptLoaded = true;
-          loadScript('multiplayer.js', () => window.startMultiplayerGame());
-        }
-      });
-
-      function returnToModeSelection() {
-        if (window.stopMultiplayerGame) window.stopMultiplayerGame();
-        multiScreen.hidden = true;
-        modeScreen.hidden = false;
-      }
-
-      document.getElementById('multiHomeButton').addEventListener('click', returnToModeSelection);
-      document.getElementById('multiHomeIconButton').addEventListener('click', returnToModeSelection);
-
-      // Single-player home controls return to the mode-selection screen.
-      const singleHomeButton = document.getElementById('singleHomeButton');
-      const singleHomeTitle = document.getElementById('singleHomeTitle');
-      const singleResetFlag = 'scrabbleSnakeRestartSinglePlayer';
-
-      function returnToSinglePlayerModes() {
-        try {
-          sessionStorage.removeItem(singleResetFlag);
-        } catch (error) {
-          // The page can still return home if session storage is unavailable.
-        }
-        window.location.reload();
-      }
-
-      if (singleHomeButton) {
-        singleHomeButton.addEventListener('click', returnToSinglePlayerModes);
-      }
-
-      if (singleHomeTitle) {
-        singleHomeTitle.addEventListener('click', returnToSinglePlayerModes);
-        singleHomeTitle.addEventListener('keydown', event => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            returnToSinglePlayerModes();
-          }
-        });
-      }
-
-      // Reset reloads the page but returns directly to Single Player,
-      // rather than stopping at the mode-selection screen.
-      let restartSinglePlayer = false;
-      try {
-        restartSinglePlayer = sessionStorage.getItem(singleResetFlag) === '1';
-        sessionStorage.removeItem(singleResetFlag);
-      } catch (error) {
-        restartSinglePlayer = false;
-      }
-
-      if (restartSinglePlayer) {
-        document.getElementById('singleModeButton').click();
-      }
-    })();
-  </script>
+<main class="mode-screen" id="modeScreen">
+<canvas aria-hidden="true" id="homeSnakeCanvas"></canvas>
+<div class="mode-card">
+<div aria-label="Scrabble Snake" aria-level="1" class="title-tile-wrapper mode-logo" role="heading">
+<div class="title-line">
+<span class="title-tile" style="background-color:#ffe6a8; transform:rotate(-8deg);">S</span>
+<span class="title-tile" style="background-color:#ffe6a8; transform:rotate(6deg);">C</span>
+<span class="title-tile" style="background-color:#ffe6a8; transform:rotate(-4deg);">R</span>
+<span class="title-tile" style="background-color:#ffe6a8; transform:rotate(5deg);">A</span>
+<span class="title-tile" style="background-color:#ffe6a8; transform:rotate(-5deg);">B</span>
+<span class="title-tile" style="background-color:#ffe6a8; transform:rotate(4deg);">B</span>
+<span class="title-tile" style="background-color:#ffe6a8; transform:rotate(-6deg);">L</span>
+<span class="title-tile" style="background-color:#ffe6a8; transform:rotate(8deg);">E</span>
+</div>
+<div class="title-line indent">
+<span class="title-tile" style="background-color:#D2AFB5;">S</span>
+<span class="title-tile" style="background-color:#B6CBCC;">N</span>
+<span class="title-tile" style="background-color:#ffe6a8;">A</span>
+<span class="title-tile" style="background-color:#D8D5C2;">K</span>
+<span class="title-tile" style="background-color:#05A4CB;">E</span>
+</div>
+</div>
+<div class="mode-options">
+<a class="mode-option" href="word-challenges.html" id="singleModeButton">
+<span class="mode-option-title">Word Challenges</span>
+<span class="mode-option-description">Three-heart word game</span>
+</a>
+<a class="mode-option" href="single-player.html" id="soloArenaModeButton">
+<span class="mode-option-title">Single Player</span>
+<span class="mode-option-description">Play solo in the full arena</span>
+</a>
+<a class="mode-option" href="double-player.html" id="multiModeButton">
+<span class="mode-option-title">Double Player</span>
+<span class="mode-option-description">Go head to head</span>
+</a>
+</div>
+</div>
+</main>
+  <script src="js/home-animation.js"></script>
 </body>
 </html>

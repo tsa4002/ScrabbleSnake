@@ -11,7 +11,7 @@ MIN_CHALLENGE_WORD_LENGTH = 3;
 MAX_CHALLENGE_WORD_LENGTH = 7;
 MAX_DUPLICATES = 2;
 
-let challengeTime     = 80;    // seconds
+let challengeTime     = 60;    // seconds, default 01:00
 let currentTimer      = challengeTime;
 let challengeInterval = null;
 let timerAnimationTimeout = null;
@@ -76,12 +76,198 @@ const scoreValueEl       = document.getElementById('scoreValue');
 const letterInventoryEl  = document.getElementById('letterInventory');
 const challengeContainer = document.getElementById('wordChallengeTiles');
 
+const wordChallengeStartOverlay = document.getElementById('wordChallengeStartOverlay');
+const wordChallengeStartButton = document.getElementById('wordChallengeStartButton');
+const wordChallengeDictionaryStatus = document.getElementById('wordChallengeDictionaryStatus');
+const wordChallengeDurationInput = document.getElementById('wordChallengeDuration');
+const wordChallengeMinutesInput = document.getElementById('wordChallengeMinutes');
+const wordChallengeSecondsInput = document.getElementById('wordChallengeSeconds');
+const wordChallengeDurationError = document.getElementById('wordChallengeDurationError');
+const wordChallengePauseOverlay = document.getElementById('wordChallengePauseOverlay');
+const wordChallengeResetButton = document.getElementById('wordChallengeResetButton');
+const wordChallengeResumeButton = document.getElementById('wordChallengeResumeButton');
+let wordChallengeDictionaryLoaded = false;
+
+function parseWordChallengeDuration() {
+  const minutesText = wordChallengeMinutesInput.value.trim();
+  const secondsText = wordChallengeSecondsInput.value.trim();
+  if (!/^\d{2}$/.test(minutesText) || !/^\d{2}$/.test(secondsText)) return null;
+
+  const minutes = Number(minutesText);
+  const seconds = Number(secondsText);
+  if (seconds > 59) return null;
+
+  const totalSeconds = (minutes * 60) + seconds;
+  if (totalSeconds < 1 || totalSeconds > 600) return null;
+  return totalSeconds;
+}
+
+function updateWordChallengeStartButton() {
+  const validDuration = parseWordChallengeDuration() !== null;
+  if (wordChallengeStartButton) {
+    wordChallengeStartButton.disabled = !(wordChallengeDictionaryLoaded && validDuration);
+  }
+  if (wordChallengeDurationInput) {
+    wordChallengeDurationInput.setAttribute('aria-invalid', String(!validDuration));
+  }
+  if (wordChallengeDurationError) {
+    wordChallengeDurationError.textContent = validDuration
+      ? ''
+      : 'Enter a time from 00:01 to 10:00.';
+  }
+}
+
+function handleWordChallengeDurationInput(event) {
+  const field = event.currentTarget;
+  const cleaned = field.value.replace(/\D/g, '').slice(0, 2);
+  if (field.value !== cleaned) field.value = cleaned;
+
+  if (
+    field === wordChallengeMinutesInput &&
+    cleaned.length === 2 &&
+    event.inputType !== 'deleteContentBackward'
+  ) {
+    wordChallengeSecondsInput.focus();
+    wordChallengeSecondsInput.select();
+  }
+
+  updateWordChallengeStartButton();
+}
+
+function dispatchWordChallengeDurationInput(field) {
+  field.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function removeWordChallengeDurationDigit(field, index) {
+  if (index < 0 || index >= field.value.length) return false;
+  field.setRangeText('', index, index + 1, 'preserve');
+  const caret = Math.max(0, Math.min(index, field.value.length));
+  field.setSelectionRange(caret, caret);
+  dispatchWordChallengeDurationInput(field);
+  return true;
+}
+
+function handleWordChallengeDurationKeyDown(event) {
+  const field = event.currentTarget;
+  const selectionStart = field.selectionStart ?? 0;
+  const selectionEnd = field.selectionEnd ?? selectionStart;
+  const valueLength = field.value.length;
+
+  if (event.key === 'Backspace' && field === wordChallengeSecondsInput) {
+    if (valueLength > 0 && selectionStart === 0 && selectionEnd === valueLength) {
+      event.preventDefault();
+      removeWordChallengeDurationDigit(field, valueLength - 1);
+      return;
+    }
+
+    if (valueLength === 0 || (selectionStart === 0 && selectionEnd === 0)) {
+      event.preventDefault();
+      wordChallengeMinutesInput.focus();
+      const minuteLastIndex = wordChallengeMinutesInput.value.length - 1;
+      if (minuteLastIndex >= 0) {
+        removeWordChallengeDurationDigit(wordChallengeMinutesInput, minuteLastIndex);
+      } else {
+        wordChallengeMinutesInput.setSelectionRange(0, 0);
+      }
+      return;
+    }
+  }
+
+  if (event.key === 'Delete' && field === wordChallengeMinutesInput) {
+    if (valueLength > 0 && selectionStart === 0 && selectionEnd === valueLength) {
+      event.preventDefault();
+      removeWordChallengeDurationDigit(field, 0);
+      return;
+    }
+
+    if (valueLength === 0 || (selectionStart === valueLength && selectionEnd === valueLength)) {
+      event.preventDefault();
+      wordChallengeSecondsInput.focus();
+      if (wordChallengeSecondsInput.value.length > 0) {
+        removeWordChallengeDurationDigit(wordChallengeSecondsInput, 0);
+      } else {
+        wordChallengeSecondsInput.setSelectionRange(0, 0);
+      }
+      return;
+    }
+  }
+
+  if (event.key === 'Enter' && wordChallengeStartButton && !wordChallengeStartButton.disabled) {
+    event.preventDefault();
+    startWordChallengeGame();
+    return;
+  }
+
+  if (
+    event.key === 'ArrowRight' &&
+    field === wordChallengeMinutesInput &&
+    selectionStart === valueLength &&
+    selectionEnd === valueLength
+  ) {
+    event.preventDefault();
+    wordChallengeSecondsInput.focus();
+    wordChallengeSecondsInput.select();
+  } else if (
+    event.key === 'ArrowLeft' &&
+    field === wordChallengeSecondsInput &&
+    selectionStart === 0 &&
+    selectionEnd === 0
+  ) {
+    event.preventDefault();
+    wordChallengeMinutesInput.focus();
+    wordChallengeMinutesInput.select();
+  }
+}
+function normalizeWordChallengeDurationField(field) {
+  const cleaned = field.value.replace(/\D/g, '').slice(0, 2);
+  field.value = cleaned ? cleaned.padStart(2, '0') : '';
+  updateWordChallengeStartButton();
+}
+
+function startWordChallengeGame() {
+  const durationSeconds = parseWordChallengeDuration();
+  if (!wordChallengeDictionaryLoaded || !durationSeconds) {
+    updateWordChallengeStartButton();
+    return;
+  }
+
+  challengeTime = durationSeconds;
+  currentTimer = challengeTime;
+  challengeRemainingMs = challengeTime * 1000;
+  manualPaused = false;
+  paused = false;
+  // Starting the match also starts the snake. Match the arena modes by
+  // beginning with a steady movement to the right instead of waiting for
+  // the player's first directional keypress.
+  direction = { x: 1, y: 0 };
+  nextDirection = { ...direction };
+  gameStarted = true;
+
+  if (wordChallengeStartOverlay) wordChallengeStartOverlay.hidden = true;
+  if (wordChallengePauseOverlay) wordChallengePauseOverlay.hidden = true;
+  updatePauseButton();
+  canvas.focus({ preventScroll: true });
+
+  // Move immediately so the Start Match click visibly begins the game,
+  // and start the first challenge timer on that same action.
+  moveSnake();
+}
+
+wordChallengeMinutesInput.addEventListener('input', handleWordChallengeDurationInput);
+wordChallengeSecondsInput.addEventListener('input', handleWordChallengeDurationInput);
+wordChallengeMinutesInput.addEventListener('blur', () => normalizeWordChallengeDurationField(wordChallengeMinutesInput));
+wordChallengeSecondsInput.addEventListener('blur', () => normalizeWordChallengeDurationField(wordChallengeSecondsInput));
+wordChallengeStartButton.addEventListener('click', startWordChallengeGame);
+[wordChallengeMinutesInput, wordChallengeSecondsInput].forEach(field => {
+  field.addEventListener('focus', () => field.select());
+  field.addEventListener('keydown', handleWordChallengeDurationKeyDown);
+});
+
 // --- Game state ---
 let gameSpeed    = 200;
 let paused       = false; // Temporary pause used by input focus and animations.
 let manualPaused = false; // User-controlled pause button state.
-let overlayActive = true;
-let gameStarted  = false; // Starts on the player's first directional keypress.
+let gameStarted  = false; // Becomes true when Start Match is clicked.
 let playerScore  = 0;
 
 // Scrabble bag & points
@@ -256,17 +442,27 @@ function loadChallengeWords(callback) {
   xhr.send();
 }
 
-// Start the game after the wordlist loads.
-loadChallengeWords(() => {
-  pickNewChallenge();
+// Prepare the arena and first challenge before enabling Start Match.
+loadChallengeWords(async () => {
+  if (wordChallengeDictionaryStatus) {
+    wordChallengeDictionaryStatus.textContent = 'Preparing your first challenge...';
+  }
+  const initialChallenge = pickNewChallenge();
 
   moveInterval = setInterval(moveSnake, gameSpeed);
   setInterval(spawnLetter, LETTER_SPAWN_RATE);
 
-
   requestAnimationFrame(drawLoop);
   wordInput.blur();
   paused = false;
+
+  // Do not enable Start match until the first challenge tiles have finished dropping in.
+  await initialChallenge;
+  wordChallengeDictionaryLoaded = true;
+  if (wordChallengeDictionaryStatus) {
+    wordChallengeDictionaryStatus.textContent = `${challengeWords.length.toLocaleString()} challenge words ready.`;
+  }
+  updateWordChallengeStartButton();
 });
 
 /**
@@ -506,7 +702,7 @@ function startChallengeTimer() {
     timerFill.style.width = '100%';
   }
 
-  // The first challenge waits until the player makes the first move.
+  // The first challenge stays stopped until Start Match begins the game.
   if (!gameStarted) {
     challengeActive = false;
     challengeTimerPaused = false;
@@ -666,12 +862,17 @@ document.addEventListener('keydown', e => {
     return;
   }
 
-  if (
-    overlayActive &&
-    ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)
-  ) {
-    document.getElementById('startOverlay').style.display = 'none';
-    overlayActive = false;
+  // Keep gameplay keys out of the game while either dashboard is open.
+  // Tab remains available for normal keyboard navigation within the cards.
+  if (wordChallengeStartOverlay && !wordChallengeStartOverlay.hidden) {
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault();
+    }
+    return;
+  }
+
+  if (wordChallengePauseOverlay && !wordChallengePauseOverlay.hidden) {
+    return;
   }
 
   if (e.key === 'Tab') {
@@ -710,14 +911,6 @@ document.addEventListener('keydown', e => {
     nextDirection = { x: 1, y: 0 };
   }
 
-  // The player, rather than the page load, starts the snake moving.
-  if (
-    !gameStarted &&
-    ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) &&
-    (nextDirection.x !== 0 || nextDirection.y !== 0)
-  ) {
-    gameStarted = true;
-  }
 });
 
 wordInput.addEventListener('focus', () => paused = true);
@@ -938,6 +1131,9 @@ function drawLoop() {
 
 // --- Letter Spawning ---
 function spawnLetter() {
+  // Do not populate the arena behind the start or pause dashboards.
+  if (!gameStarted || paused || manualPaused) return;
+
   const R = 50;
   const hx = snake[0].x;
   const hy = snake[0].y;
@@ -1087,26 +1283,23 @@ renderLives();
 
 // =========================================================================
 // GAME CONTROL BUTTONS
-// These handlers expect resetButton and muteButton/muteIcon in the HTML.
-// Single-player home navigation is handled by index.html.
+// The mode-selection navigation is handled by word-challenges.html.
 // =========================================================================
 
 // RESET BUTTON
 const resetButton = document.getElementById('resetButton');
 
 function handleResetButton() {
-  // Reload all single-player state, then have index.html reopen Single Player.
-  try {
-    sessionStorage.setItem('scrabbleSnakeRestartSinglePlayer', '1');
-  } catch (error) {
-    console.warn('Could not preserve the selected mode during reset:', error);
-  }
-
   window.location.reload();
 }
 
 if (resetButton) {
   resetButton.addEventListener('click', handleResetButton);
+}
+
+// The pause-overlay Reset button uses the same reset behavior.
+if (wordChallengeResetButton) {
+  wordChallengeResetButton.addEventListener('click', handleResetButton);
 }
 
 // MUTE BUTTON AND M KEYBOARD SHORTCUT
@@ -1179,7 +1372,11 @@ function updatePauseButton() {
   }
 
   if (pauseButton) {
+    const startDashboardVisible = Boolean(
+      wordChallengeStartOverlay && !wordChallengeStartOverlay.hidden
+    );
     const label = manualPaused ? 'Resume game' : 'Pause game';
+    pauseButton.disabled = startDashboardVisible;
     pauseButton.title = label;
     pauseButton.setAttribute('aria-label', label);
     pauseButton.setAttribute('aria-pressed', String(manualPaused));
@@ -1187,12 +1384,19 @@ function updatePauseButton() {
 }
 
 function togglePause() {
+  // The pause control is inactive until the start dashboard has been dismissed.
+  if (wordChallengeStartOverlay && !wordChallengeStartOverlay.hidden) return;
+
   manualPaused = !manualPaused;
 
   if (manualPaused) {
     pauseChallengeTimer();
+    if (wordChallengePauseOverlay) wordChallengePauseOverlay.hidden = false;
+    if (wordChallengeResumeButton) wordChallengeResumeButton.focus();
   } else {
+    if (wordChallengePauseOverlay) wordChallengePauseOverlay.hidden = true;
     resumeChallengeTimer();
+    canvas.focus({ preventScroll: true });
   }
 
   updatePauseButton();
@@ -1200,6 +1404,10 @@ function togglePause() {
 
 if (pauseButton) {
   pauseButton.addEventListener('click', togglePause);
+}
+
+if (wordChallengeResumeButton) {
+  wordChallengeResumeButton.addEventListener('click', togglePause);
 }
 
 updatePauseButton();

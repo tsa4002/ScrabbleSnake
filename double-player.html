@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scrabble Snake | Double Player</title>
+  <link rel="stylesheet" href="css/shared.css" />
+  <link rel="stylesheet" href="css/double-player.css" />
+  <link rel="icon" href="favicon.png" />
+</head>
+<body>
+<section class="double-player-screen" id="multiGameScreen">
+<header class="multi-topbar">
+<section aria-label="Player 1 score" class="multi-player-score player-one">
+<div class="multi-score-line"><span id="p1Score">0</span><small>POINTS</small></div>
+<div class="multi-player-label">PLAYER 1</div>
+<div aria-live="polite" class="player-feedback" id="p1Feedback"></div>
+</section>
+<button aria-label="Return to game mode selection" class="multi-title-home" id="multiHomeButton" type="button">
+<span class="title-tile-wrapper multi-logo">
+<span class="title-line">
+<span class="title-tile" style="background-color:#ffe6a8; transform:rotate(-8deg);">S</span>
+<span class="title-tile" style="background-color:#ffe6a8; transform:rotate(6deg);">C</span>
+<span class="title-tile" style="background-color:#ffe6a8; transform:rotate(-4deg);">R</span>
+<span class="title-tile" style="background-color:#ffe6a8; transform:rotate(5deg);">A</span>
+<span class="title-tile" style="background-color:#ffe6a8; transform:rotate(-5deg);">B</span>
+<span class="title-tile" style="background-color:#ffe6a8; transform:rotate(4deg);">B</span>
+<span class="title-tile" style="background-color:#ffe6a8; transform:rotate(-6deg);">L</span>
+<span class="title-tile" style="background-color:#ffe6a8; transform:rotate(8deg);">E</span>
+</span>
+<span class="title-line indent">
+<span class="title-tile" style="background-color:#D2AFB5;">S</span>
+<span class="title-tile" style="background-color:#B6CBCC;">N</span>
+<span class="title-tile" style="background-color:#ffe6a8;">A</span>
+<span class="title-tile" style="background-color:#D8D5C2;">K</span>
+<span class="title-tile" style="background-color:#05A4CB;">E</span>
+</span>
+</span>
+</button>
+<section aria-label="Player 2 score" class="multi-player-score player-two">
+<div class="multi-score-line"><span id="p2Score">0</span><small>POINTS</small></div>
+<div class="multi-player-label">PLAYER 2</div>
+<div aria-live="polite" class="player-feedback" id="p2Feedback"></div>
+</section>
+</header>
+<main class="multi-game-area" id="multiGameArena">
+<canvas id="multiGameCanvas"></canvas>
+<div class="multi-start-overlay" id="multiStartOverlay">
+<div class="multi-start-card">
+<p class="multi-eyebrow">DOUBLE PLAYER</p>
+<h1>Ready to compete?</h1>
+<p>Submit words after collecting their letter tiles, <em>in order!</em></p>
+<div class="multi-control-summary">
+<div>
+<strong>PLAYER 1</strong>
+<span>Arrow keys to move</span>
+<span><kbd>Enter</kbd> to submit</span>
+</div>
+<div>
+<strong>PLAYER 2</strong>
+<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> to move</span>
+<span><kbd>Ctrl</kbd> to submit</span>
+</div>
+</div>
+<p class="dictionary-status" id="multiDictionaryStatus">Loading word list...</p>
+<button disabled="" id="multiStartButton" type="button">Start match</button>
+<div id="multiDurationHomeSlot">
+<div class="multi-duration-control">
+<label for="multiMatchMinutes">MATCH DURATION</label>
+<div aria-label="Match duration, maximum ten minutes" class="multi-duration-input" id="multiMatchDuration">
+<input aria-describedby="multiMatchDurationError" aria-label="Minutes" autocomplete="off" id="multiMatchMinutes" inputmode="numeric" maxlength="2" type="text" value="02"/>
+<span aria-hidden="true" class="multi-duration-colon">:</span>
+<input aria-describedby="multiMatchDurationError" aria-label="Seconds" autocomplete="off" id="multiMatchSeconds" inputmode="numeric" maxlength="2" type="text" value="30"/>
+</div>
+<span aria-live="polite" class="multi-duration-error" id="multiMatchDurationError"></span>
+</div>
+</div>
+</div>
+</div>
+<div class="multi-results-overlay" hidden="" id="multiResultsOverlay">
+<div aria-labelledby="multiResultsTitle" aria-modal="true" class="multi-results-card" role="dialog">
+<p class="multi-eyebrow">MATCH COMPLETE</p>
+<h1 id="multiResultsTitle">Match results</h1>
+<section aria-label="Player 1 results" class="multi-results-player player-one-results">
+<header class="multi-results-player-header">
+<h2>PLAYER 1</h2>
+<div class="multi-results-total"><span id="multiResultsP1Score">0</span><small>POINTS</small></div>
+</header>
+<div aria-label="Player 1 submitted words" class="multi-results-words" id="multiResultsP1Words"></div>
+</section>
+<section aria-label="Player 2 results" class="multi-results-player player-two-results">
+<header class="multi-results-player-header">
+<h2>PLAYER 2</h2>
+<div class="multi-results-total"><span id="multiResultsP2Score">0</span><small>POINTS</small></div>
+</header>
+<div aria-label="Player 2 submitted words" class="multi-results-words" id="multiResultsP2Words"></div>
+</section>
+<footer class="multi-results-footer">
+<div class="multi-results-duration-slot" id="multiResultsDurationSlot"></div>
+<button disabled="" id="multiResultsStartButton" type="button">Start match</button>
+</footer>
+</div>
+</div>
+</main>
+<div aria-label="Match time remaining" class="multi-match-timer" hidden="" id="multiMatchTimer">
+<div class="multi-match-timer-track">
+<div class="multi-match-timer-fill" id="multiMatchTimerFill"></div>
+</div>
+</div>
+<footer class="multi-bottom-controls">
+<div class="game-controls">
+<button aria-label="Return to game mode selection" class="control-button" id="multiHomeIconButton" title="Home" type="button">
+<svg viewbox="0 0 24 24"><path d="m3 10 9-7 9 7"></path><path d="M5 9v12h14V9"></path><path d="M9 21v-7h6v7"></path></svg>
+</button>
+<button aria-label="Mute sound" class="control-button" id="multiMuteButton" title="Mute sound" type="button">
+<svg viewbox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M19 5a10 10 0 0 1 0 14"></path></svg>
+</button>
+<button aria-label="Pause game" class="control-button" disabled="" id="multiPauseButton" title="Pause game" type="button">
+<svg viewbox="0 0 24 24"><path d="M8 5v14M16 5v14"></path></svg>
+</button>
+<button aria-label="Restart match" class="control-button" id="multiResetButton" title="Restart match" type="button">
+<svg viewbox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path></svg>
+</button>
+</div>
+</footer>
+</section>
+  <script src="js/double-player.js"></script>
+  <script>
+    (() => {
+      const goHome = () => window.location.href = 'index.html';
+      ['multiHomeButton', 'multiHomeIconButton'].forEach(id => {
+        const button = document.getElementById(id);
+        if (button) button.addEventListener('click', goHome);
+      });
+      window.startMultiplayerGame();
+    })();
+  </script>
+</body>
+</html>

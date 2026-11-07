@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scrabble Snake | Word Challenges</title>
+  <link rel="stylesheet" href="css/shared.css" />
+  <link rel="stylesheet" href="css/word-challenges.css" />
+  <link rel="icon" href="favicon.png" />
+</head>
+<body>
+<div class="word-challenges-screen" id="wordChallengesScreen">
+<div class="sidebar">
+<div aria-label="Return to game mode selection" class="title-tile-wrapper single-home-title" id="singleHomeTitle" role="button" tabindex="0" title="Return to game mode selection">
+<div class="title-line">
+<span class="title-tile" style="background-color: #ffe6a8; transform: rotate(-8deg);">S</span>
+<span class="title-tile" style="background-color: #ffe6a8; transform: rotate(6deg);">C</span>
+<span class="title-tile" style="background-color: #ffe6a8; transform: rotate(-4deg);">R</span>
+<span class="title-tile" style="background-color: #ffe6a8; transform: rotate(5deg);">A</span>
+<span class="title-tile" style="background-color: #ffe6a8; transform: rotate(-5deg);">B</span>
+<span class="title-tile" style="background-color: #ffe6a8; transform: rotate(4deg);">B</span>
+<span class="title-tile" style="background-color: #ffe6a8; transform: rotate(-6deg);">L</span>
+<span class="title-tile" style="background-color: #ffe6a8; transform: rotate(8deg);">E</span>
+</div>
+<div class="title-line indent">
+<span class="title-tile" style="background-color: #D2AFB5;">S</span>
+<span class="title-tile" style="background-color: #B6CBCC;">N</span>
+<span class="title-tile" style="background-color: #ffe6a8;">A</span>
+<span class="title-tile" style="background-color: #D8D5C2;">K</span>
+<span class="title-tile" style="background-color: #05A4CB;">E</span>
+</div>
+</div>
+<div class="word-challenge">
+<div class="timer-bar">
+<div id="timerFill"></div>
+</div>
+<div class="challenge-header">
+<h3>Word Challenge</h3>
+<div id="lifeContainer">
+<span class="heart full">❤</span>
+<span class="heart full">❤</span>
+<span class="heart full">❤</span>
+</div>
+</div>
+<div id="wordChallengeTiles"></div>
+</div>
+<div class="inventory">
+<h3>Letters Collected</h3>
+<div class="tile-inventory" id="letterInventory"></div>
+</div>
+<div class="submission-area">
+<input id="wordInput" placeholder="Spell the word here and press enter!" type="text"/>
+<div class="submission-footer">
+<div class="score-display" id="playerScore">
+<img alt="S" class="score-icon" src="favicon.png"/>
+<div class="score-tiles">
+<div class="tile">C</div>
+<div class="tile">O</div>
+<div class="tile">R</div>
+<div class="tile">E</div>
+</div>
+<span class="score-sep">:</span>
+<span class="score-value" id="scoreValue">0</span>
+</div>
+<div class="game-controls">
+<button aria-label="Choose game mode" class="control-button" id="singleHomeButton" title="Choose game mode" type="button">
+<svg viewbox="0 0 24 24"><path d="m3 10 9-7 9 7"></path><path d="M5 9v12h14V9"></path><path d="M9 21v-7h6v7"></path></svg>
+</button>
+<button aria-label="Mute sound" class="control-button" id="muteButton" title="Mute sound" type="button">
+<svg id="muteIcon" viewbox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M19 5a10 10 0 0 1 0 14"></path></svg>
+</button>
+<button aria-label="Pause game" aria-pressed="false" class="control-button" disabled="" id="pauseButton" title="Pause game" type="button">
+<svg id="pauseIcon" viewbox="0 0 24 24"><path d="M8 5v14M16 5v14"></path></svg>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="game-arena">
+<canvas aria-label="Word Challenges game arena" id="game" tabindex="-1"></canvas>
+<div class="wc-start-overlay" id="wordChallengeStartOverlay">
+<div aria-labelledby="wordChallengeStartTitle" aria-modal="true" class="wc-start-card" role="dialog">
+<h1 id="wordChallengeStartTitle">Ready to Play?</h1>
+<p>Build an inventory of letters & spell out challenge words!</p>
+<div class="wc-control-summary">
+<div>
+<strong>CONTROLS</strong>
+<span>Arrow keys to move, <kbd>enter</kbd> to submit</span>
+<span><kbd>Tab</kbd> to move into the text input box</span>
+</div>
+</div>
+<p class="dictionary-status" id="wordChallengeDictionaryStatus">Loading word list...</p>
+<button disabled="" id="wordChallengeStartButton" type="button">Start match</button>
+<div class="word-challenge-duration-control">
+<label for="wordChallengeMinutes">TIME PER WORD</label>
+<div aria-label="Time per challenge word" class="word-challenge-duration-input" id="wordChallengeDuration">
+<input aria-describedby="wordChallengeDurationError" aria-label="Minutes" autocomplete="off" id="wordChallengeMinutes" inputmode="numeric" maxlength="2" type="text" value="01"/>
+<span aria-hidden="true" class="wc-duration-colon">:</span>
+<input aria-describedby="wordChallengeDurationError" aria-label="Seconds" autocomplete="off" id="wordChallengeSeconds" inputmode="numeric" maxlength="2" type="text" value="00"/>
+</div>
+<span aria-live="polite" class="wc-duration-error" id="wordChallengeDurationError"></span>
+</div>
+</div>
+</div>
+</div>
+<div class="wc-pause-overlay" hidden="" id="wordChallengePauseOverlay">
+<div aria-labelledby="wordChallengePauseTitle" aria-modal="true" class="wc-pause-card" role="dialog">
+<div class="wc-pause-content">
+<section class="wc-pause-section">
+<h2 id="wordChallengePauseTitle">Guide</h2>
+<ul>
+<li>Build an inventory of letters to spell out the challenge words before the timer runs out!</li>
+<li>Words score the sum of their letter values. The point system and challenge words are sourced from Scrabble.</li>
+<li>In this version, running into your own body makes you lose your tiles.</li>
+</ul>
+</section>
+<section class="wc-pause-section">
+<h2>Controls</h2>
+<ul>
+<li>Move with the arrow keys. Press <kbd>Enter</kbd> to submit.</li>
+<li><kbd>Tab</kbd> to toggle between text input box and arena.</li>
+</ul>
+</section>
+</div>
+<div class="wc-pause-actions">
+  <button id="wordChallengeResetButton" type="button">Reset</button>
+  <button id="wordChallengeResumeButton" type="button">Resume</button>
+</div>
+</div>
+</div>
+</div>
+  <script src="js/word-challenges.js"></script>
+  <script>
+    (() => {
+      const goHome = () => window.location.href = 'index.html';
+      const homeButton = document.getElementById('singleHomeButton');
+      const homeTitle = document.getElementById('singleHomeTitle');
+      if (homeButton) homeButton.addEventListener('click', goHome);
+      if (homeTitle) {
+        homeTitle.addEventListener('click', goHome);
+        homeTitle.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            goHome();
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

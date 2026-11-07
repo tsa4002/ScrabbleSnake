@@ -1,11 +1,7 @@
-/* Mode selection and multiplayer styles. The original stylesheet.css continues
-   to own the single-player appearance. */
+/* ==========================================================================
+   SINGLE PLAYER ARENA
+   ========================================================================== */
 
-/*
-  MULTIPLAYER ARENA SIZE
-  Adjust these four values to change the black stage margins independently.
-  Smaller margins give the playing field more space.
-*/
 :root {
   --multi-arena-top-margin: 88px;
   --multi-arena-right-margin: 20px;
@@ -19,96 +15,10 @@
   --multi-score-feedback-line-height: 16px;
 }
 
-[hidden] {
-  display: none !important;
-}
-
 /* --------------------------------------------------------------------------
-   MODE SELECTOR
+   FULL-SCREEN SINGLE PLAYER PAGE
    -------------------------------------------------------------------------- */
-.mode-screen {
-  min-height: 100vh;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 32px 18px;
-  background: #f6f5f1;
-}
-
-.mode-card {
-  width: min(560px, 100%);
-  padding: 38px 34px 34px;
-  background: #fff;
-  border: 2px solid #222;
-  border-radius: 12px;
-  box-shadow: 8px 8px 0 #222;
-  text-align: center;
-}
-
-.mode-logo {
-  margin: 0 auto 30px;
-  transform: scale(1.12);
-}
-
-.mode-card h1 {
-  margin: 0 0 8px;
-  font-size: 28px;
-}
-
-.mode-intro {
-  margin-bottom: 28px;
-  color: #555;
-  font-size: 15px;
-}
-
-.mode-options {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
-.mode-option {
-  min-height: 118px;
-  padding: 20px 14px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  color: #111;
-  background: #fff;
-  border: 2px solid #333;
-  border-radius: 7px;
-  cursor: pointer;
-  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
-}
-
-.mode-option:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 5px 0 #333;
-  background: #fff9e9;
-}
-
-.mode-option:active {
-  transform: translateY(0);
-  box-shadow: none;
-}
-
-.mode-option-title {
-  font-size: 19px;
-  font-weight: 700;
-}
-
-.mode-option-description {
-  color: #666;
-  font-size: 13px;
-}
-
-/* --------------------------------------------------------------------------
-   FULL-SCREEN MULTIPLAYER PAGE
-   -------------------------------------------------------------------------- */
-.multiplayer-screen {
+.single-player-screen {
   position: fixed;
   inset: 0;
   z-index: 20;
@@ -317,7 +227,7 @@
   justify-content: flex-end;
 }
 
-/* Reuse the exact control-button language from stylesheet.css. */
+/* Reuse the exact control-button language from shared.css. */
 .multi-bottom-controls .game-controls {
   display: flex;
   align-items: center;
@@ -427,6 +337,23 @@
 .multi-control-summary span {
   color: #ddd;
 }
+
+.multi-control-summary.solo-control-summary kbd{
+  display: inline-block;
+  min-width: 19px;
+  margin-right: 2px;
+  padding: 1px 4px;
+  border: 1px solid #777;
+  border-radius: 3px;
+  color: #ffe6a8;
+  background: #303030;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  text-align: center;
+  box-shadow: 0 2px 0 #111;
+
+}
+
 
 .multi-start-card .multi-start-instruction {
   margin-bottom: 16px;
@@ -993,4 +920,49 @@
   .multi-pause-card { padding: 16px 15px 13px; }
   .multi-pause-content { gap: 12px; }
   .multi-pause-section ul { font-size: 12px; }
+}
+
+
+/* ==========================================================================
+   SINGLE PLAYER-SPECIFIC ARENA OVERRIDES
+   The complete arena styling is contained in this file.
+   ========================================================================== */
+
+.solo-arena-screen .multi-player-score.player-one {
+  left: 24px;
+  text-align: left;
+}
+
+.solo-arena-screen .multi-control-summary {
+  grid-template-columns: 1fr;
+  max-width: 230px;
+  margin: 18px auto 12px;
+}
+
+.solo-arena-screen .multi-control-summary div {
+  align-items: center;
+}
+
+.solo-arena-screen .multi-control-summary div strong {
+  color: #ffe6a8;
+}
+
+.solo-arena-screen .multi-start-card {
+  width: min(470px, 100%);
+}
+
+.solo-arena-screen .multi-results-card {
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+.solo-arena-screen .multi-results-player {
+  min-height: 0;
+}
+
+@media (max-width: 650px) {
+  .solo-arena-screen .multi-player-score.player-one { left: 12px; }
+}
+
+@media (max-width: 430px) {
+  .solo-arena-screen .multi-player-score.player-one { left: 8px; }
 }

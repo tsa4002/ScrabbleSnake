@@ -1,0 +1,90 @@
+/* ==========================================================================
+   SHARED BASE
+   ========================================================================== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  background: #fff;
+  color: #000;
+  font-family: sans-serif;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* Shared Scrabble Snake tile logo */
+.title-tile-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 5px 0 20px;
+}
+
+.title-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.title-tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 2px solid #333;
+  border-radius: 4px;
+  background: #ffe6a8;
+  color: #000;
+  font-family: 'Courier New', monospace;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+/* Shared footer controls */
+.game-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #555;
+  border-radius: 5px;
+  background: #333;
+  color: #ffe6a8;
+  cursor: pointer;
+  transition: background .2s ease, transform .2s ease;
+}
+
+.control-button svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: #ffe6a8;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.control-button:hover {
+  background: #555;
+  transform: translateY(-2px);
+}
+
+.control-button:active {
+  transform: translateY(0);
+}
