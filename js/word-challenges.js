@@ -1,7 +1,7 @@
 // at the top, before anything else
 const bgMusic = new Audio('sound_effects/background_arcade_music.wav');
 bgMusic.loop   = true;
-bgMusic.volume = 0.50;
+bgMusic.volume = 0.35;
 
 // Sound controls
 let isMuted = false;
@@ -51,22 +51,16 @@ function playSfx(sfx) {
 }
 
 function unlockAudio() {
-  // Prime the audio elements after the browser receives a user gesture.
-  if (!isMuted) {
-    [sfxLetter, sfxSubmit, sfxErrorSubmission, sfxCrash, sfxHeartLost, sfxHeartsRefill].forEach(sfx => {
-      sfx.play().catch(() => {});
-      sfx.pause();
-      sfx.currentTime = 0;
-    });
+  // Prime the sound-effect audio elements from the Start Match user gesture.
+  // Background music is started explicitly by startWordChallengeGame().
+  if (isMuted) return;
 
-    bgMusic.play().catch(() => {});
-  }
-
-  window.removeEventListener('keydown', unlockAudio);
+  [sfxLetter, sfxSubmit, sfxErrorSubmission, sfxCrash, sfxHeartLost, sfxHeartsRefill].forEach(sfx => {
+    sfx.play().catch(() => {});
+    sfx.pause();
+    sfx.currentTime = 0;
+  });
 }
-
-// Listen for the first keypress to unlock audio.
-window.addEventListener('keydown', unlockAudio);
 
 // --- DOM & Canvas refs ---
 const canvas             = document.getElementById('game');
@@ -241,6 +235,14 @@ function startWordChallengeGame() {
   direction = { x: 1, y: 0 };
   nextDirection = { ...direction };
   gameStarted = true;
+
+  // The Start Match click is the browser-approved user gesture for audio.
+  // Start the soundtrack here instead of waiting for the first gameplay key.
+  unlockAudio();
+  bgMusic.muted = isMuted;
+  if (!isMuted) {
+    bgMusic.play().catch(() => {});
+  }
 
   if (wordChallengeStartOverlay) wordChallengeStartOverlay.hidden = true;
   if (wordChallengePauseOverlay) wordChallengePauseOverlay.hidden = true;
@@ -436,7 +438,7 @@ let challengeWords = [];
 function loadChallengeWords(callback) {
   const xhr = new XMLHttpRequest();
 
-  xhr.open('GET', 'wordlist.txt', true);
+  xhr.open('GET', 'clean_wordlist.txt', true);
 
   xhr.onreadystatechange = () => {
     if (xhr.readyState !== 4) {
@@ -456,7 +458,7 @@ function loadChallengeWords(callback) {
             w.length <= MAX_CHALLENGE_WORD_LENGTH
         );
     } else {
-      console.error('Could not load wordlist.txt; using fallback list.');
+      console.error('Could not load clean_wordlist.txt; using fallback list.');
       challengeWords = ['DEFAULT', 'WORDS', 'HERE'];
     }
 
@@ -1311,15 +1313,29 @@ renderLives();
 // The mode-selection navigation is handled by word-challenges.html.
 // =========================================================================
 
-// RESET BUTTON
-const resetButton = document.getElementById('resetButton');
+// RESET BUTTON IN THE PAUSE DASHBOARD
+// The current HTML uses id="wordChallengeResetButton".
+const wordChallengeResetButton = document.getElementById('wordChallengeResetButton');
 
 function handleResetButton() {
+  // Stop any active countdown and audio before returning to the initial screen.
+  stopChallengeTimer();
+  bgMusic.pause();
+  bgMusic.currentTime = 0;
+
+  activeSfx.forEach(clip => {
+    clip.pause();
+    clip.currentTime = 0;
+  });
+  activeSfx.clear();
+
+  // Reloading this page resets the snake, score, lives, letters, and challenge,
+  // and restores the Ready to Play dashboard.
   window.location.reload();
 }
 
-if (resetButton) {
-  resetButton.addEventListener('click', handleResetButton);
+if (wordChallengeResetButton) {
+  wordChallengeResetButton.addEventListener('click', handleResetButton);
 }
 
 // MUTE BUTTON AND M KEYBOARD SHORTCUT
@@ -1361,7 +1377,7 @@ function toggleMute() {
     clip.muted = isMuted;
   });
 
-  if (!isMuted) {
+  if (!isMuted && gameStarted) {
     bgMusic.play().catch(() => {});
   }
 

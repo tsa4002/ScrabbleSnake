@@ -3,7 +3,7 @@
 
   const CONFIG = {
     // Number of independent word-snakes visible or entering at one time.
-    snakeCount: 15,
+    snakeCount: 17,
 
     // Only words with at least this many letters are used.
     minimumWordLength: 5,
@@ -639,9 +639,9 @@
 
   async function loadWords() {
     try {
-      const response = await fetch('wordlist.txt');
+      const response = await fetch('clean_wordlist.txt');
       if (!response.ok) {
-        throw new Error(`wordlist.txt returned HTTP ${response.status}`);
+        throw new Error(`clean_wordlist.txt returned HTTP ${response.status}`);
       }
 
       const text = await response.text();
