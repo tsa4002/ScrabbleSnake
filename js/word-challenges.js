@@ -59,6 +59,7 @@ function unlockAudio() {
       sfx.currentTime = 0;
     });
 
+    bgMusic.play().catch(() => {});
   }
 
   window.removeEventListener('keydown', unlockAudio);
@@ -83,7 +84,6 @@ const wordChallengeMinutesInput = document.getElementById('wordChallengeMinutes'
 const wordChallengeSecondsInput = document.getElementById('wordChallengeSeconds');
 const wordChallengeDurationError = document.getElementById('wordChallengeDurationError');
 const wordChallengePauseOverlay = document.getElementById('wordChallengePauseOverlay');
-const wordChallengeResetButton = document.getElementById('wordChallengeResetButton');
 const wordChallengeResumeButton = document.getElementById('wordChallengeResumeButton');
 let wordChallengeDictionaryLoaded = false;
 
@@ -242,11 +242,6 @@ function startWordChallengeGame() {
   nextDirection = { ...direction };
   gameStarted = true;
 
-  // Start background music from the Start Match click, which is a user gesture.
-  if (!isMuted) {
-    bgMusic.play().catch(() => {});
-  }
-
   if (wordChallengeStartOverlay) wordChallengeStartOverlay.hidden = true;
   if (wordChallengePauseOverlay) wordChallengePauseOverlay.hidden = true;
   updatePauseButton();
@@ -293,20 +288,46 @@ const points = {
 };
 
 // --- Canvas setup ---
-const padding = 20;
 const tileSize = 20;
 
-let cols, rows;
+let cols = 0;
+let rows = 0;
 
 function resizeCanvas() {
-  canvas.width = canvas.parentElement.clientWidth - padding;
-  canvas.height = window.innerHeight - padding;
+  const arena = canvas.parentElement;
+  if (!arena) return;
 
-  cols = Math.floor(canvas.width / tileSize);
-  rows = Math.floor(canvas.height / tileSize);
+  // Use the arena's rendered size, not the full browser viewport. The arena
+  // is a sibling of the sidebar wrapper and can change size at breakpoints.
+  const rect = arena.getBoundingClientRect();
+  const width = Math.max(0, Math.floor(rect.width));
+  const height = Math.max(0, Math.floor(rect.height));
+
+  if (width === 0 || height === 0) {
+    cols = 0;
+    rows = 0;
+    return;
+  }
+
+  // Avoid resetting the drawing surface when only a resize event fires but
+  // the arena dimensions have not actually changed.
+  if (canvas.width !== width) canvas.width = width;
+  if (canvas.height !== height) canvas.height = height;
+
+  cols = Math.max(1, Math.floor(width / tileSize));
+  rows = Math.max(1, Math.floor(height / tileSize));
 }
 
 window.addEventListener('resize', resizeCanvas);
+
+// ResizeObserver also catches layout changes that do not trigger a window
+// resize, such as a breakpoint/layout change or a parent panel resizing.
+if (typeof ResizeObserver !== 'undefined' && canvas.parentElement) {
+  const arenaResizeObserver = new ResizeObserver(resizeCanvas);
+  arenaResizeObserver.observe(canvas.parentElement);
+}
+
+// The script is loaded after the page markup, so the arena is available here.
 resizeCanvas();
 
 function preloadLetters() {
@@ -1301,11 +1322,6 @@ if (resetButton) {
   resetButton.addEventListener('click', handleResetButton);
 }
 
-// The pause-overlay Reset button uses the same reset behavior.
-if (wordChallengeResetButton) {
-  wordChallengeResetButton.addEventListener('click', handleResetButton);
-}
-
 // MUTE BUTTON AND M KEYBOARD SHORTCUT
 const muteButton = document.getElementById('muteButton');
 const muteIcon = document.getElementById('muteIcon');
@@ -1345,10 +1361,8 @@ function toggleMute() {
     clip.muted = isMuted;
   });
 
-  if (!isMuted && !manualPaused) {
+  if (!isMuted) {
     bgMusic.play().catch(() => {});
-  } else {
-    bgMusic.pause();
   }
 
   updateMuteButton();
@@ -1397,17 +1411,11 @@ function togglePause() {
 
   if (manualPaused) {
     pauseChallengeTimer();
-    bgMusic.pause();
     if (wordChallengePauseOverlay) wordChallengePauseOverlay.hidden = false;
     if (wordChallengeResumeButton) wordChallengeResumeButton.focus();
   } else {
     if (wordChallengePauseOverlay) wordChallengePauseOverlay.hidden = true;
     resumeChallengeTimer();
-
-    if (!isMuted) {
-      bgMusic.play().catch(() => {});
-    }
-
     canvas.focus({ preventScroll: true });
   }
 

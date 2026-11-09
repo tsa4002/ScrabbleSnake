@@ -37,6 +37,11 @@
 </span>
 </span>
 </button>
+<section aria-label="Ali (bot) score" class="multi-player-score player-two bot-player-score">
+<div class="multi-score-line"><span id="p2Score">0</span><small>POINTS</small></div>
+<div class="multi-player-label" id="botScoreLabel">Ali (bot)</div>
+<div aria-live="polite" class="player-feedback" id="p2Feedback"></div>
+</section>
 </header>
 <main class="multi-game-area" id="multiGameArena">
 <canvas aria-label="Single-player arena" id="multiGameCanvas"></canvas>
@@ -49,7 +54,7 @@
 <div>
 <strong>CONTROLS</strong>
 <span>Arrow keys to move</span>
-<span><kbd>Enter</kbd> to submit</span>
+<span>Enter to submit</span>
 </div>
 </div>
 <p class="dictionary-status" id="multiDictionaryStatus">Loading word list...</p>
@@ -70,13 +75,20 @@
 <div class="multi-results-overlay" hidden="" id="multiResultsOverlay">
 <div aria-labelledby="multiResultsTitle" aria-modal="true" class="multi-results-card" role="dialog">
 <p class="multi-eyebrow">MATCH COMPLETE</p>
-<h1 id="multiResultsTitle">Your results</h1>
+<h1 id="multiResultsTitle">Match results</h1>
 <section aria-label="Your results" class="multi-results-player player-one-results">
 <header class="multi-results-player-header">
 <h2>YOUR SCORE</h2>
 <div class="multi-results-total"><span id="multiResultsP1Score">0</span><small>POINTS</small></div>
 </header>
 <div aria-label="Your submitted words" class="multi-results-words" id="multiResultsP1Words"></div>
+</section>
+<section aria-label="Ali (bot) results" class="multi-results-player player-two-results">
+<header class="multi-results-player-header">
+<h2 id="multiResultsP2Title">Ali (bot)</h2>
+<div class="multi-results-total"><span id="multiResultsP2Score">0</span><small>POINTS</small></div>
+</header>
+<div aria-label="Ali (bot) submitted words" class="multi-results-words" id="multiResultsP2Words"></div>
 </section>
 <footer class="multi-results-footer">
 <div class="multi-results-duration-slot" id="multiResultsDurationSlot"></div>

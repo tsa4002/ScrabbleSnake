@@ -62,11 +62,26 @@
   const players = [
     {
       id: 1,
-      name: 'Player',
+      name: 'YOU',
       accent: '#d7a83e',
+      isBot: false,
       snake: [],
       direction: { x: 1, y: 0 },
       nextDirection: { x: 1, y: 0 },
+      score: 0,
+      words: [],
+      headBounce: 0,
+      feedback: '',
+      feedbackTimeout: null
+    },
+    {
+      id: 2,
+      name: 'Ali (bot)',
+      accent: '#347f84',
+      isBot: true,
+      snake: [],
+      direction: { x: -1, y: 0 },
+      nextDirection: { x: -1, y: 0 },
       score: 0,
       words: [],
       headBounce: 0,
@@ -101,6 +116,21 @@
   let rows = 0;
   let targetLetterCount = 0;
   let acceptedWords = new Set();
+  // Hard uses its own exact 3-5-letter Medium-bot dictionary index.
+  // Ambitious tiers use a separate 3-7-letter index so they cannot alter Hard.
+  let botWordsByFirstLetter = new Map();
+  let bestBotStarterWordByLetter = new Map();
+  let ambitiousBotWordsByFirstLetter = new Map();
+  const activeBotDifficulty = 'normal';
+  let botDecisionTicks = 0;
+  let botPressureTicksRemaining = 0;
+
+  // Shared recovery is used when the active bot strategy cannot find a
+  // reachable useful letter for a sustained period.
+  let botNoTargetTicks = 0;
+  let botRecoveryMode = null;
+  const BOT_RECOVERY_DELAY_WITH_PREFIX = 7;
+  const BOT_RECOVERY_DELAY_WITHOUT_PREFIX = 11;
   let dictionaryLoaded = false;
   let dictionaryLoading = null;
   let gameRunning = false;
@@ -203,6 +233,7 @@
         try {
           const result = await fetchDictionaryFrom(url);
           acceptedWords = result.words;
+          buildBotDictionaryIndex();
           dictionaryLoaded = true;
           dictionaryStatus.textContent = `${acceptedWords.size.toLocaleString()} words loaded`;
           dictionaryStatus.title = `Loaded from ${result.url}`;
@@ -294,18 +325,28 @@
   }
 
   function resetPlayers() {
-    const player = players[0];
-    clearPlayerFeedback(player);
-    player.score = 0;
-    player.words.length = 0;
-    player.feedback = '';
-    player.headBounce = 0;
-    player.direction = { x: 1, y: 0 };
-    player.nextDirection = { ...player.direction };
-    player.snake = [];
+    players.forEach(player => {
+      clearPlayerFeedback(player);
+      player.score = 0;
+      player.words.length = 0;
+      player.feedback = '';
+      player.headBounce = 0;
+      player.direction = player.id === 1 ? { x: 1, y: 0 } : { x: -1, y: 0 };
+      player.nextDirection = { ...player.direction };
+      player.snake = [];
+    });
 
-    const startCell = findFreeCell(Math.floor(cols / 2), Math.floor(rows / 2)) || findFreeCell();
-    if (startCell) player.snake = [{ ...startCell, letter: null }];
+    const middleY = Math.floor(rows / 2);
+    const playerStart = findFreeCell(Math.floor(cols * 0.23), middleY) || findFreeCell();
+    if (playerStart) players[0].snake = [{ ...playerStart, letter: null }];
+
+    const botStart = findFreeCell(Math.floor(cols * 0.77), middleY) || findFreeCell();
+    if (botStart) players[1].snake = [{ ...botStart, letter: null }];
+
+    botDecisionTicks = 0;
+    botPressureTicksRemaining = 0;
+    botNoTargetTicks = 0;
+    botRecoveryMode = null;
     renderScores();
   }
 
@@ -450,43 +491,106 @@
     };
   }
 
+  function plannedSnake(plan) {
+    return plan.nextSnake || plan.player.snake;
+  }
+
+  function isHeadToHead(planA, planB) {
+    if (planA.wall || planB.wall) return false;
+    const sameCell = planA.nextHead.x === planB.nextHead.x && planA.nextHead.y === planB.nextHead.y;
+    const swapped = planA.nextHead.x === planB.player.snake[0].x &&
+      planA.nextHead.y === planB.player.snake[0].y &&
+      planB.nextHead.x === planA.player.snake[0].x &&
+      planB.nextHead.y === planA.player.snake[0].y;
+    return sameCell || swapped;
+  }
+
   function stepGame() {
     if (!gameRunning || gamePaused) return;
     removeExpiredLetters();
 
-    const player = players[0];
-    const plan = makeMovePlan(player);
+    // The bot chooses one legal direction per game tick. Its movement is then
+    // resolved in the same simultaneous update as the human player's snake.
+    updateBotAI();
 
-    if (plan.wall) {
-      // Hitting a wall costs the player every collected tile, but not the match.
-      // Drop each tile at its exact cell, then respawn the head elsewhere.
-      const oldHead = player.snake[0];
-      const collectedSegments = player.snake.slice(1);
-      dropSegments(collectedSegments);
-      player.snake = [{ x: oldHead.x, y: oldHead.y, letter: null }];
+    const plans = players.map(makeMovePlan);
+    const dead = new Set();
+    const headCollision = isHeadToHead(plans[0], plans[1]);
 
-      const respawnCell = findInteriorFreeCell();
-      if (respawnCell) player.snake = [{ ...respawnCell, letter: null }];
-      player.direction = { x: 1, y: 0 };
+    plans.forEach((plan, index) => {
+      if (plan.wall) dead.add(index);
+    });
+
+    if (headCollision) {
+      dead.add(0);
+      dead.add(1);
+    } else {
+      plans.forEach((plan, index) => {
+        const otherPlan = plans[1 - index];
+        if (plan.wall || otherPlan.wall) return;
+        const otherBody = plannedSnake(otherPlan).slice(1);
+        if (otherBody.some(segment =>
+          segment.x === plan.nextHead.x && segment.y === plan.nextHead.y
+        )) {
+          dead.add(index);
+        }
+      });
+    }
+
+    const dropped = [];
+    plans.forEach((plan, index) => {
+      const player = players[index];
+      if (dead.has(index)) {
+        // A wall or opponent collision costs the player every tile they had
+        // before this tick. The attempted pickup remains on the board.
+        dropped.push(...player.snake.slice(1));
+        const oldHead = player.snake[0];
+        player.snake = [{ x: oldHead.x, y: oldHead.y, letter: null }];
+        player.headBounce = 0;
+      } else {
+        player.snake = plan.nextSnake;
+        dropped.push(...plan.cutSegments);
+        if (plan.cutSegments.length) playSfx(sfxCrash);
+        if (plan.pickupLetter) {
+          player.headBounce = 15;
+          playSfx(sfxLetter);
+        }
+        player.direction = { ...player.nextDirection };
+      }
+    });
+
+    // A letter can only be collected by a snake that survives this movement.
+    const pickedIndices = plans
+      .filter((plan, index) => !dead.has(index) && plan.pickupIndex >= 0)
+      .map(plan => plan.pickupIndex);
+    [...new Set(pickedIndices)].sort((a, b) => b - a)
+      .forEach(index => lettersOnBoard.splice(index, 1));
+
+    dropSegments(dropped);
+
+    // A self-cut changes the bot's collected prefix. Start its target search
+    // again from the shorter snake rather than carrying over a stale timeout.
+    if (plans[1].cutSegments.length) {
+      botNoTargetTicks = 0;
+      botRecoveryMode = null;
+    }
+
+    // Respawn after dropped letters have been restored to the board.
+    dead.forEach(index => {
+      const player = players[index];
+      const cell = findInteriorFreeCell();
+      if (cell) player.snake = [{ ...cell, letter: null }];
+      player.direction = player.id === 1 ? { x: 1, y: 0 } : { x: -1, y: 0 };
       player.nextDirection = { ...player.direction };
-      player.headBounce = 0;
+      if (player.isBot) {
+        botNoTargetTicks = 0;
+        botRecoveryMode = null;
+        botPressureTicksRemaining = 0;
+      }
       playSfx(sfxCrash);
-      renderScores();
-      return;
-    }
+    });
 
-    player.snake = plan.nextSnake;
-    player.direction = { ...player.nextDirection };
-
-    if (plan.pickupIndex >= 0 && plan.pickupLetter) {
-      lettersOnBoard.splice(plan.pickupIndex, 1);
-      player.headBounce = 15;
-      playSfx(sfxLetter);
-    }
-
-    if (plan.cutSegments.length) {
-      dropSegments(plan.cutSegments);
-      playSfx(sfxCrash);
+    if (plans.some(plan => plan.pickupLetter || plan.cutSegments.length) || dead.size) {
       renderScores();
     }
   }
@@ -582,6 +686,625 @@
     if (player.nextDirection.x + direction.x === 0 &&
         player.nextDirection.y + direction.y === 0) return;
     player.nextDirection = direction;
+  }
+
+  // ----------------------------------------------------------------------
+  // DIFFICULTY-TIERED BOT
+  // The bot uses the same board, dictionary, scoring, tick interval, and
+  // collision rules as the human player. It only chooses its next direction.
+  // ----------------------------------------------------------------------
+  const BOT_HARD_MAX_WORD_LENGTH = 5;
+  const BOT_AMBITION_MAX_WORD_LENGTH = 7;
+  const BOT_HARD_MAX_EXTENSION_DISTANCE = 7;
+  const BOT_DIRECTIONS = [
+    { x: 0, y: -1 },
+    { x: 1, y: 0 },
+    { x: 0, y: 1 },
+    { x: -1, y: 0 }
+  ];
+
+  // Length is a preference, not a gate. Normal gets its largest bonus for
+  // 4-5 letters; Easy gets a stronger bonus for 6-7 letters. Other valid word
+  // lengths remain eligible and can still win on points or route efficiency.
+  const BOT_WORD_AMBITION = {
+    normal: {
+      preferredMinLength: 4,
+      preferredMaxLength: 5,
+      peakBonus: 5.2,
+      outsideRangePenalty: 2.0,
+      routeDistanceWeight: 0.42,
+      extensionMaxDistance: 9,
+      extensionMinValueGain: 1.0
+    },
+    easy: {
+      preferredMinLength: 6,
+      preferredMaxLength: 7,
+      peakBonus: 8.4,
+      outsideRangePenalty: 2.0,
+      routeDistanceWeight: 0.42,
+      extensionMaxDistance: 12,
+      extensionMinValueGain: 1.4
+    }
+  };
+
+  function buildBotDictionaryIndex() {
+    // This is the original Medium bot index, preserved independently for Hard.
+    // Its contents and starter-word calculation match the supplied code.
+    botWordsByFirstLetter = new Map();
+    bestBotStarterWordByLetter = new Map();
+
+    // Normal and Easy get their own wider index. It is never consulted by Hard.
+    ambitiousBotWordsByFirstLetter = new Map();
+
+    acceptedWords.forEach(word => {
+      if (word.length < MIN_WORD_LENGTH || word.length > BOT_AMBITION_MAX_WORD_LENGTH) return;
+
+      const firstLetter = word[0];
+      if (!ambitiousBotWordsByFirstLetter.has(firstLetter)) {
+        ambitiousBotWordsByFirstLetter.set(firstLetter, []);
+      }
+      ambitiousBotWordsByFirstLetter.get(firstLetter).push(word);
+
+      if (word.length <= BOT_HARD_MAX_WORD_LENGTH) {
+        if (!botWordsByFirstLetter.has(firstLetter)) {
+          botWordsByFirstLetter.set(firstLetter, []);
+        }
+        botWordsByFirstLetter.get(firstLetter).push(word);
+      }
+    });
+
+    botWordsByFirstLetter.forEach((words, letter) => {
+      let bestWord = null;
+      let bestValue = -Infinity;
+
+      words.forEach(word => {
+        const value = calculateWordScore(word) + (word.length - MIN_WORD_LENGTH) * 0.65;
+        if (value > bestValue) {
+          bestValue = value;
+          bestWord = word;
+        }
+      });
+
+      if (bestWord) bestBotStarterWordByLetter.set(letter, bestWord);
+    });
+  }
+
+  function getCollectedWord(player) {
+    return player.snake.slice(1)
+      .map(segment => segment.letter || '')
+      .join('');
+  }
+
+  function botCellKey(x, y) {
+    return y * cols + x;
+  }
+
+  function getHardBotAllowedNextLetters(prefix) {
+    // Exact Medium bot prefix filtering, retained as Hard without ambition logic.
+    if (!prefix) return new Set(bestBotStarterWordByLetter.keys());
+
+    const allowed = new Set();
+    const candidates = botWordsByFirstLetter.get(prefix[0]) || [];
+    candidates.forEach(word => {
+      if (word.length > prefix.length &&
+          word.startsWith(prefix)) {
+        allowed.add(word[prefix.length]);
+      }
+    });
+    return allowed;
+  }
+
+  function getBotAllowedNextLetters(prefix) {
+    if (activeBotDifficulty === 'hard') {
+      return getHardBotAllowedNextLetters(prefix);
+    }
+
+    if (!prefix) return new Set(ambitiousBotWordsByFirstLetter.keys());
+
+    const allowed = new Set();
+    const candidates = ambitiousBotWordsByFirstLetter.get(prefix[0]) || [];
+    candidates.forEach(word => {
+      if (word.length > prefix.length && word.startsWith(prefix)) {
+        allowed.add(word[prefix.length]);
+      }
+    });
+    return allowed;
+  }
+
+  function getBotReachablePaths(bot, allowedLetters = null) {
+    if (!bot.snake.length) return new Map();
+
+    const head = bot.snake[0];
+    const blocked = new Set();
+    players.forEach(owner => {
+      owner.snake.forEach((segment, index) => {
+        if (owner === bot && index === 0) return;
+        blocked.add(botCellKey(segment.x, segment.y));
+      });
+    });
+
+    // Do not route through letters that would break the word prefix. Tiles
+    // that can legally extend the prefix remain available as path targets.
+    if (allowedLetters) {
+      lettersOnBoard.forEach(tile => {
+        if (!allowedLetters.has(tile.letter)) {
+          blocked.add(botCellKey(tile.x, tile.y));
+        }
+      });
+    }
+
+    const paths = new Map();
+    const startKey = botCellKey(head.x, head.y);
+    paths.set(startKey, { distance: 0, firstDirection: null });
+    const queue = [{ x: head.x, y: head.y, distance: 0, firstDirection: null }];
+    let cursor = 0;
+
+    while (cursor < queue.length) {
+      const current = queue[cursor++];
+      for (const direction of BOT_DIRECTIONS) {
+        if (current.distance === 0 &&
+            direction.x + bot.nextDirection.x === 0 &&
+            direction.y + bot.nextDirection.y === 0) {
+          continue;
+        }
+
+        const x = current.x + direction.x;
+        const y = current.y + direction.y;
+        if (x < 0 || x >= cols || y < 0 || y >= rows) continue;
+
+        const key = botCellKey(x, y);
+        if (blocked.has(key) || paths.has(key)) continue;
+
+        const firstDirection = current.distance === 0
+          ? direction
+          : current.firstDirection;
+        const next = {
+          x,
+          y,
+          distance: current.distance + 1,
+          firstDirection
+        };
+        paths.set(key, {
+          distance: next.distance,
+          firstDirection: next.firstDirection
+        });
+        queue.push(next);
+      }
+    }
+
+    return paths;
+  }
+
+  function getReachableBoardLetters(paths) {
+    const byLetter = new Map();
+    lettersOnBoard.forEach(tile => {
+      const path = paths.get(botCellKey(tile.x, tile.y));
+      if (!path || !path.firstDirection) return;
+      if (!byLetter.has(tile.letter)) byLetter.set(tile.letter, []);
+      byLetter.get(tile.letter).push({ tile, path });
+    });
+    return byLetter;
+  }
+
+  function findNearestBotLetter(letter, reachableLetters) {
+    const options = reachableLetters.get(letter);
+    if (!options || !options.length) return null;
+    return options.reduce((best, option) => {
+      if (!best || option.path.distance < best.path.distance) return option;
+      return best;
+    }, null);
+  }
+
+  function getBestHardBotTarget(bot, prefix, paths) {
+    // Original Medium bot target selection, moved into its own Hard-only branch.
+    const reachableLetters = getReachableBoardLetters(paths);
+    let bestTarget = null;
+
+    if (!prefix) {
+      reachableLetters.forEach((locations, letter) => {
+        const word = bestBotStarterWordByLetter.get(letter);
+        if (!word) return;
+        const location = locations.reduce((best, option) => {
+          if (!best || option.path.distance < best.path.distance) return option;
+          return best;
+        }, null);
+        if (!location) return;
+
+        const wordScore = calculateWordScore(word);
+        const value = wordScore + (word.length - MIN_WORD_LENGTH) * 0.45 - location.path.distance * 0.42;
+        if (!bestTarget || value > bestTarget.value) {
+          bestTarget = {
+            word,
+            letter,
+            tile: location.tile,
+            distance: location.path.distance,
+            firstDirection: location.path.firstDirection,
+            score: wordScore,
+            value
+          };
+        }
+      });
+      return bestTarget;
+    }
+
+    const bucket = botWordsByFirstLetter.get(prefix[0]) || [];
+    const bestWordByNextLetter = new Map();
+
+    bucket.forEach(word => {
+      if (word.length <= prefix.length ||
+          word.length > BOT_HARD_MAX_WORD_LENGTH ||
+          !word.startsWith(prefix)) return;
+      const nextLetter = word[prefix.length];
+      const score = calculateWordScore(word);
+      const current = bestWordByNextLetter.get(nextLetter);
+      if (!current || score > current.score ||
+          (score === current.score && word.length < current.word.length)) {
+        bestWordByNextLetter.set(nextLetter, { word, score });
+      }
+    });
+
+    bestWordByNextLetter.forEach((candidate, letter) => {
+      const location = findNearestBotLetter(letter, reachableLetters);
+      if (!location) return;
+
+      const value = candidate.score + (candidate.word.length - MIN_WORD_LENGTH) * 0.45 - location.path.distance * 0.42;
+      if (!bestTarget || value > bestTarget.value) {
+        bestTarget = {
+          word: candidate.word,
+          letter,
+          tile: location.tile,
+          distance: location.path.distance,
+          firstDirection: location.path.firstDirection,
+          score: candidate.score,
+          value
+        };
+      }
+    });
+
+    return bestTarget;
+  }
+
+  function getBotAmbitionBonus(wordLength, profile) {
+    const distanceFromPreferredRange = wordLength < profile.preferredMinLength
+      ? profile.preferredMinLength - wordLength
+      : wordLength > profile.preferredMaxLength
+        ? wordLength - profile.preferredMaxLength
+        : 0;
+    return Math.max(0, profile.peakBonus - distanceFromPreferredRange * profile.outsideRangePenalty);
+  }
+
+  function getBestAmbitiousBotTarget(prefix, reachableLetters, profile) {
+    let bestTarget = null;
+
+    const evaluateWordAtLocations = (word, nextLetter, locations) => {
+      if (word.length <= prefix.length || word.length > BOT_AMBITION_MAX_WORD_LENGTH) return;
+      if (prefix && !word.startsWith(prefix)) return;
+      if (!locations || !locations.length) return;
+
+      const wordScore = calculateWordScore(word);
+      const ambitionBonus = getBotAmbitionBonus(word.length, profile);
+      locations.forEach(location => {
+        const value = wordScore + ambitionBonus - location.path.distance * profile.routeDistanceWeight;
+        if (!bestTarget || value > bestTarget.value) {
+          bestTarget = {
+            word,
+            letter: nextLetter,
+            tile: location.tile,
+            distance: location.path.distance,
+            firstDirection: location.path.firstDirection,
+            score: wordScore,
+            value
+          };
+        }
+      });
+    };
+
+    if (prefix) {
+      const candidates = ambitiousBotWordsByFirstLetter.get(prefix[0]) || [];
+      candidates.forEach(word => {
+        if (word.length <= prefix.length || !word.startsWith(prefix)) return;
+        const nextLetter = word[prefix.length];
+        evaluateWordAtLocations(word, nextLetter, reachableLetters.get(nextLetter));
+      });
+      return bestTarget;
+    }
+
+    reachableLetters.forEach((locations, firstLetter) => {
+      const candidates = ambitiousBotWordsByFirstLetter.get(firstLetter) || [];
+      candidates.forEach(word => {
+        if (word[0] !== firstLetter) return;
+        evaluateWordAtLocations(word, firstLetter, locations);
+      });
+    });
+
+    return bestTarget;
+  }
+
+  function getBestBotTarget(bot, prefix, paths) {
+    if (activeBotDifficulty === 'hard') {
+      return getBestHardBotTarget(bot, prefix, paths);
+    }
+
+    const reachableLetters = getReachableBoardLetters(paths);
+    const profile = BOT_WORD_AMBITION[activeBotDifficulty] || BOT_WORD_AMBITION.normal;
+    return getBestAmbitiousBotTarget(prefix, reachableLetters, profile);
+  }
+
+  function shouldBotHoldWord(currentWord, currentScore, target) {
+    // Hard uses the supplied Medium bot's original extension rule verbatim.
+    if (activeBotDifficulty === 'hard') {
+      if (!target || currentWord.length >= BOT_HARD_MAX_WORD_LENGTH) return false;
+      const additionalPoints = target.score - currentScore;
+      const maximumDistance = currentWord.length <= 3
+        ? BOT_HARD_MAX_EXTENSION_DISTANCE + 1
+        : BOT_HARD_MAX_EXTENSION_DISTANCE - 1;
+      const minimumGain = currentWord.length <= 3 ? 2 : 3;
+      return target.distance <= maximumDistance && additionalPoints >= minimumGain;
+    }
+
+    if (!target || target.word.length <= currentWord.length) return false;
+
+    // Normal and Easy hold accepted words when a longer target has enough
+    // ambition and scoring value to justify the extra route. The distance
+    // allowance grows with ambition, but the shared recovery rules do not.
+    const profile = BOT_WORD_AMBITION[activeBotDifficulty] || BOT_WORD_AMBITION.normal;
+    const currentAmbition = getBotAmbitionBonus(currentWord.length, profile);
+    const targetAmbition = getBotAmbitionBonus(target.word.length, profile);
+    const additionalPoints = target.score - currentScore;
+    const totalGain = additionalPoints + targetAmbition - currentAmbition;
+
+    return target.distance <= profile.extensionMaxDistance &&
+      totalGain >= profile.extensionMinValueGain;
+  }
+
+  function findBotInterceptionTarget(bot, human, paths) {
+    if (!human.snake.length || human.snake.length < 3) return null;
+    const head = human.snake[0];
+    const direction = human.nextDirection;
+    const perpendicular = { x: -direction.y, y: direction.x };
+    let best = null;
+
+    // Look a few cells ahead of the human's current heading. Moving through
+    // this area can leave the bot's body across the player's likely route.
+    [2, 3, 4].forEach(forwardSteps => {
+      [-1, 0, 1].forEach(sideSteps => {
+        const x = head.x + direction.x * forwardSteps + perpendicular.x * sideSteps;
+        const y = head.y + direction.y * forwardSteps + perpendicular.y * sideSteps;
+        if (x < 1 || x >= cols - 1 || y < 1 || y >= rows - 1) return;
+        if (cellHasSnake(x, y)) return;
+
+        const path = paths.get(botCellKey(x, y));
+        if (!path || !path.firstDirection || path.distance > 7) return;
+        const value = path.distance + Math.abs(sideSteps) * 0.8 + forwardSteps * 0.12;
+        if (!best || value < best.value) {
+          best = { firstDirection: path.firstDirection, distance: path.distance, value };
+        }
+      });
+    });
+
+    return best;
+  }
+
+  function chooseBotSafeDirection(bot) {
+    if (!bot.snake.length) return;
+    const head = bot.snake[0];
+    let bestDirection = null;
+    let bestValue = -Infinity;
+
+    BOT_DIRECTIONS.forEach(direction => {
+      if (direction.x + bot.nextDirection.x === 0 &&
+          direction.y + bot.nextDirection.y === 0) return;
+
+      const x = head.x + direction.x;
+      const y = head.y + direction.y;
+      if (x < 0 || x >= cols || y < 0 || y >= rows || cellHasSnake(x, y) || cellHasLetter(x, y)) return;
+
+      let openNeighbors = 0;
+      BOT_DIRECTIONS.forEach(nextDirection => {
+        const nx = x + nextDirection.x;
+        const ny = y + nextDirection.y;
+        if (nx < 0 || nx >= cols || ny < 0 || ny >= rows || cellHasSnake(nx, ny)) return;
+        openNeighbors++;
+      });
+
+      const centerDistance = Math.abs(x - cols / 2) + Math.abs(y - rows / 2);
+      const forwardBonus = direction.x === bot.direction.x && direction.y === bot.direction.y ? 0.35 : 0;
+      const value = openNeighbors * 2 - centerDistance * 0.015 + forwardBonus;
+      if (value > bestValue) {
+        bestValue = value;
+        bestDirection = direction;
+      }
+    });
+
+    if (bestDirection) setDirection(bot, bestDirection);
+  }
+
+  // Deliberately cut back to a usable word prefix when the bot has spent
+  // too long without a reachable next letter. The candidate move is simulated
+  // with the game's real movement planner, so normal collision and tile-drop
+  // rules handle the cut on the next shared game tick.
+  function chooseBotTailCutDirection(bot) {
+    if (!bot.snake.length || bot.snake.length < 4) return null;
+
+    const originalDirection = bot.nextDirection;
+    let bestOption = null;
+
+    try {
+      for (const direction of BOT_DIRECTIONS) {
+        // Reversing directly into the neck is never a legal move.
+        if (direction.x + originalDirection.x === 0 &&
+            direction.y + originalDirection.y === 0) continue;
+
+        bot.nextDirection = direction;
+        const plan = makeMovePlan(bot);
+        if (plan.wall || !plan.cutSegments.length) continue;
+
+        // Do not use a recovery cut that immediately collides with the human.
+        if (players[0].snake.some(segment =>
+          segment.x === plan.nextHead.x && segment.y === plan.nextHead.y
+        )) continue;
+
+        const retainedWord = plan.nextSnake.slice(1)
+          .map(segment => segment.letter || '')
+          .join('');
+        const retainedIsValid = acceptedWords.has(retainedWord);
+        const retainedCanContinue = !retainedWord ||
+          getBotAllowedNextLetters(retainedWord).size > 0;
+
+        // Only keep a prefix that is already a word or can still become one.
+        if (!retainedIsValid && !retainedCanContinue) continue;
+
+        const lostLetters = plan.cutSegments.filter(segment => segment.letter).length;
+        const retainedValue = retainedIsValid
+          ? calculateWordScore(retainedWord) * 4
+          : getBotAllowedNextLetters(retainedWord).size;
+        const value = retainedValue - lostLetters * 0.15;
+
+        if (!bestOption || value > bestOption.value) {
+          bestOption = {
+            direction: { ...direction },
+            value,
+            lostLetters,
+            retainedWord
+          };
+        }
+      }
+    } finally {
+      bot.nextDirection = originalDirection;
+    }
+
+    return bestOption;
+  }
+
+  function chooseBotWallResetDirection(bot) {
+    if (!bot.snake.length) return;
+
+    const head = bot.snake[0];
+    let bestDirection = null;
+    let shortestWallDistance = Infinity;
+
+    BOT_DIRECTIONS.forEach(direction => {
+      // Avoid the illegal immediate 180-degree turn.
+      if (direction.x + bot.nextDirection.x === 0 &&
+          direction.y + bot.nextDirection.y === 0) return;
+
+      const distance = direction.x === 1 ? cols - 1 - head.x
+        : direction.x === -1 ? head.x
+        : direction.y === 1 ? rows - 1 - head.y
+        : head.y;
+
+      if (distance < shortestWallDistance) {
+        shortestWallDistance = distance;
+        bestDirection = direction;
+      }
+    });
+
+    // The normal stepGame collision resolver will drop all bot tiles and
+    // respawn it when this chosen direction reaches the arena border.
+    if (bestDirection) setDirection(bot, bestDirection);
+  }
+
+  function beginBotRecovery(bot, currentWord) {
+    const tailCut = chooseBotTailCutDirection(bot);
+
+    if (tailCut) {
+      botRecoveryMode = 'tail';
+      botPressureTicksRemaining = 0;
+      setDirection(bot, tailCut.direction);
+      return 'tail';
+    }
+
+    // If no safe cut can preserve a valid or extendable prefix, deliberately
+    // reset via a wall collision instead of roaming indefinitely.
+    botRecoveryMode = 'wall';
+    botPressureTicksRemaining = 0;
+    chooseBotWallResetDirection(bot);
+    return 'wall';
+  }
+
+  function updateBotAI() {
+    const bot = players[1];
+    const human = players[0];
+    if (!bot || !bot.snake.length || !dictionaryLoaded) return;
+    botDecisionTicks++;
+
+    // Once recovery chooses a wall reset, keep the bot moving toward the wall
+    // until the existing collision handler drops its inventory and respawns it.
+    if (botRecoveryMode === 'wall') {
+      chooseBotWallResetDirection(bot);
+      return;
+    }
+
+    let currentWord = getCollectedWord(bot);
+    let allowedLetters = getBotAllowedNextLetters(currentWord);
+    let paths = getBotReachablePaths(bot, allowedLetters);
+    let target = getBestBotTarget(bot, currentWord, paths);
+
+    // Hard retains the original conservative hold rule. Normal and Easy apply
+    // their word-length ambition preference when deciding whether to extend.
+    if (currentWord && acceptedWords.has(currentWord)) {
+      const currentScore = calculateWordScore(currentWord);
+      if (!shouldBotHoldWord(currentWord, currentScore, target)) {
+        submitWord(bot);
+        currentWord = '';
+        allowedLetters = getBotAllowedNextLetters(currentWord);
+        paths = getBotReachablePaths(bot, allowedLetters);
+        target = getBestBotTarget(bot, currentWord, paths);
+      }
+    }
+
+    // Scoring stays the primary objective. The bot only makes an interception
+    // attempt when its next useful letter is not close, the human is carrying
+    // at least two letters, and the bot is not comfortably ahead.
+    const scoringTargetIsFar = !target || target.distance > 5;
+    const canPressurePlayer = activeBotDifficulty === 'hard' &&
+      scoringTargetIsFar &&
+      human.snake.length >= 3 &&
+      human.score >= bot.score;
+
+    if (!canPressurePlayer) {
+      botPressureTicksRemaining = 0;
+    }
+
+    const shouldPressurePlayer = canPressurePlayer &&
+      (botPressureTicksRemaining > 0 || botDecisionTicks % 6 === 0);
+
+    if (shouldPressurePlayer) {
+      const interception = findBotInterceptionTarget(bot, human, paths);
+      if (interception) {
+        // Commit to a short interception attempt across a few normal game
+        // ticks, but abandon it as soon as a useful scoring target is close.
+        botPressureTicksRemaining = Math.max(botPressureTicksRemaining, 3) - 1;
+        setDirection(bot, interception.firstDirection);
+        return;
+      }
+      botPressureTicksRemaining = 0;
+    }
+
+    if (target && target.firstDirection) {
+      botNoTargetTicks = 0;
+      if (botRecoveryMode === 'tail') botRecoveryMode = null;
+      setDirection(bot, target.firstDirection);
+      return;
+    }
+
+    // A short gap with no matching letter can be normal. Wait a little, then
+    // recover deliberately rather than roaming forever. A collected prefix
+    // gets a faster tail-cut attempt; an empty snake waits slightly longer
+    // before taking the wall reset.
+    botNoTargetTicks++;
+    const hasPrefix = currentWord.length > 0;
+    const recoveryDelay = hasPrefix
+      ? BOT_RECOVERY_DELAY_WITH_PREFIX
+      : BOT_RECOVERY_DELAY_WITHOUT_PREFIX;
+
+    if (botNoTargetTicks >= recoveryDelay) {
+      beginBotRecovery(bot, currentWord);
+      return;
+    }
+
+    // During the brief grace period, use the existing safe roaming behavior.
+    chooseBotSafeDirection(bot);
   }
 
   function handleKeyDown(event) {
@@ -906,10 +1629,10 @@
           <section class="multi-pause-section">
             <h2 id="multiPauseTitle">Guide</h2>
             <ul>
-              <li>Collect letter tiles <em>in order</em> and submit valid words.</li>
+              <li>Collect letter tiles <em>in order</em> and submit valid words to outscore the bot.</li>
               <li>A valid word scores the sum of its letter values. The point system and accepted words are sourced from Scrabble.</li>
+              <li>Make the bot crash into you or the arena's borders to make them lose their tiles.</li>
               <li>Running into your own body cuts off the section you hit and drops those letters onto the board.</li>
-              <li>Hitting an arena border drops all your collected tiles. You then continue from a new position.</li>
             </ul>
           </section>
           <section class="multi-pause-section">
@@ -990,7 +1713,7 @@
     if (!section) {
       section = document.createElement('section');
       section.className = `multi-results-player ${playerClass}`;
-      section.setAttribute('aria-label', `Player ${player.id} results`);
+      section.setAttribute('aria-label', `${player.name} results`);
       const footer = card.querySelector('.multi-results-footer');
       card.insertBefore(section, footer || null);
     }
@@ -1004,7 +1727,7 @@
 
     if (!header.querySelector('h2')) {
       const heading = document.createElement('h2');
-      heading.textContent = `PLAYER ${player.id}`;
+      heading.textContent = player.name;
       header.appendChild(heading);
     }
 
@@ -1027,7 +1750,7 @@
     }
     wordsEl.id = wordsId;
     wordsEl.classList.add('multi-results-words');
-    wordsEl.setAttribute('aria-label', `Player ${player.id} submitted words`);
+    wordsEl.setAttribute('aria-label', `${player.name} submitted words`);
     wordsEl.setAttribute('tabindex', '0');
 
     return { scoreEl, wordsEl };
@@ -1141,6 +1864,16 @@
     updatePauseButton();
   }
 
+  function updateBotIdentityPresentation() {
+    const label = 'Ali (bot)';
+    players[1].name = label;
+
+    const scoreLabel = document.getElementById('botScoreLabel');
+    const resultsLabel = document.getElementById('multiResultsP2Title');
+    if (scoreLabel) scoreLabel.textContent = label;
+    if (resultsLabel) resultsLabel.textContent = label;
+  }
+
   function startRound() {
     if (!dictionaryLoaded || gameRunning) return;
     const durationSeconds = parseMatchDuration();
@@ -1151,6 +1884,7 @@
 
     matchMinutesInput.blur();
     matchSecondsInput.blur();
+    updateBotIdentityPresentation();
 
     // After a completed match, prepare a genuinely fresh board and reset both
     // scores only when the players choose Start match again.
@@ -1297,6 +2031,7 @@
   function initializeSoloArena() {
     bindEvents();
     ensurePauseOverlay();
+    updateBotIdentityPresentation();
     // Start dictionary loading before canvas setup so an unrelated rendering
     // error cannot leave the Start button displaying an endless loading state.
     loadDictionary();

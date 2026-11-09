@@ -276,6 +276,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow-y: auto;
   color: #fff;
   background: rgba(0, 0, 0, .86);
 }
@@ -337,23 +338,6 @@
 .multi-control-summary span {
   color: #ddd;
 }
-
-.multi-control-summary.solo-control-summary kbd{
-  display: inline-block;
-  min-width: 19px;
-  margin-right: 2px;
-  padding: 1px 4px;
-  border: 1px solid #777;
-  border-radius: 3px;
-  color: #ffe6a8;
-  background: #303030;
-  font-family: 'Courier New', monospace;
-  font-size: 10px;
-  text-align: center;
-  box-shadow: 0 2px 0 #111;
-
-}
-
 
 .multi-start-card .multi-start-instruction {
   margin-bottom: 16px;
@@ -947,12 +931,27 @@
   color: #ffe6a8;
 }
 
+.bot-player-score .multi-player-label {
+  color: #347f84;
+}
+
+.solo-arena-screen .multi-start-overlay {
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+}
+
 .solo-arena-screen .multi-start-card {
   width: min(470px, 100%);
+  height: auto;
+  min-height: 0;
+  max-height: 100%;
+  flex: 0 1 auto;
+  align-self: center;
 }
 
 .solo-arena-screen .multi-results-card {
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) minmax(0, 1fr) auto;
 }
 
 .solo-arena-screen .multi-results-player {
@@ -961,8 +960,74 @@
 
 @media (max-width: 650px) {
   .solo-arena-screen .multi-player-score.player-one { left: 12px; }
+  .solo-arena-screen .multi-player-score.player-two { right: 12px; }
+  .solo-arena-screen .multi-player-score { min-width: 88px; }
 }
 
 @media (max-width: 430px) {
   .solo-arena-screen .multi-player-score.player-one { left: 8px; }
+  .solo-arena-screen .multi-player-score.player-two { right: 8px; }
+}
+
+@media (max-height: 700px) {
+  .solo-arena-screen .multi-start-overlay { align-items: center; }
+  .solo-arena-screen .multi-start-card { max-height: calc(100% - 32px); }
+}
+
+/* --------------------------------------------------------------------------
+   SINGLE-PLAYER START AND RESULTS LAYOUT
+   Keep the original compact start card. At match end, the results dashboard
+   stays inside the arena and only the submitted-word lists are scrollable.
+   -------------------------------------------------------------------------- */
+.solo-arena-screen .multi-start-overlay {
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+}
+
+.solo-arena-screen .multi-start-card {
+  width: min(470px, 100%);
+  height: auto;
+  min-height: 0;
+  max-height: 100%;
+  flex: 0 1 auto;
+  align-self: center;
+  overflow: visible;
+}
+
+.solo-arena-screen .multi-results-overlay {
+  inset: 0;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(6px, 2vw, 18px);
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.solo-arena-screen .multi-results-card {
+  box-sizing: border-box;
+  width: min(570px, 100%);
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  margin: 0;
+  grid-template-rows: auto auto minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-content: stretch;
+  overflow: hidden;
+}
+
+.solo-arena-screen .multi-results-player {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.solo-arena-screen .multi-results-words {
+  flex: 1 1 0;
+  min-height: 0;
+  height: 0;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
