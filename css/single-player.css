@@ -41,6 +41,21 @@
   background: #fff;
 }
 
+.solo-arena-screen .multi-control-summary kbd {
+  display: inline-block;
+  min-width: 19px;
+  margin-right: 4px;
+  padding: 1px 5px;
+  border: 1px solid #777;
+  border-radius: 3px;
+  color: #ffe6a8;
+  background: #303030;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  text-align: center;
+  box-shadow: 0 2px 0 #111;
+}
+
 .multi-title-home {
   position: absolute;
   top: 7px;
